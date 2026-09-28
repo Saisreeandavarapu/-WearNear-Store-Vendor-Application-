@@ -10,6 +10,7 @@ export interface VendorUser {
   storeName: string;
   storeStatus: StoreStatus;
   avatar?: string;
+  permissions?: StaffPermission[];
 }
 
 export interface StoreProfile {
@@ -55,12 +56,18 @@ export interface ProductVariant {
   price: number;
   discountPrice?: number;
   stock: number;
+  barcode?: string;
+  barcodeFormat?: 'EAN-13' | 'EAN-8' | 'UPC-A' | 'UPC-E' | 'CODE128' | 'CODE39' | 'QR';
+  availableStock?: number;
+  reservedStock?: number;
 }
 
 export interface Product {
   id: string;
   name: string;
   sku: string;
+  barcode?: string;
+  barcodeFormat?: 'EAN-13' | 'EAN-8' | 'UPC-A' | 'UPC-E' | 'CODE128' | 'CODE39' | 'QR';
   category: string;
   categoryId: string;
   brand: string;
@@ -187,17 +194,83 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
+export type InventoryTransactionType =
+  | 'STOCK_ADDED'
+  | 'STOCK_DEDUCTED'
+  | 'SOLD'
+  | 'RESERVED'
+  | 'RELEASED'
+  | 'RETURNED'
+  | 'RESTORED'
+  | 'MANUAL_ADJUSTMENT'
+  | 'DAMAGED'
+  | 'EXPIRED';
+
 export interface InventoryTransaction {
   id: string;
   date: string;
+  time?: string;
   productName: string;
+  productId?: string;
+  variantId?: string;
+  variantInfo?: string;
   sku: string;
-  type: 'STOCK_ADDED' | 'STOCK_DEDUCTED' | 'RESERVED' | 'RESTORED' | 'MANUAL_ADJUSTMENT';
+  barcode?: string;
+  type: InventoryTransactionType;
   quantityChange: number;
   previousStock: number;
   newStock: number;
   reason: string;
+  reference?: string;
   performedBy: string;
+}
+
+export interface POSCartItem {
+  id: string;
+  productId: string;
+  variantId?: string;
+  productName: string;
+  brand: string;
+  category: string;
+  sku: string;
+  barcode: string;
+  size: string;
+  color: string;
+  colorHex?: string;
+  image: string;
+  unitPrice: number;
+  mrp: number;
+  quantity: number;
+  availableStock: number;
+  discountPercent?: number;
+  taxRate: number; // Apparel GST rate (typically 5% in India)
+}
+
+export interface POSSaleData {
+  customerName: string;
+  customerPhone: string;
+  customerGst?: string;
+  customerAddress?: string;
+  items: POSCartItem[];
+  subtotal: number;
+  discountTotal: number;
+  taxAmount: number;
+  deliveryFee: number;
+  finalAmount: number;
+  paymentMethod: 'CASH' | 'UPI' | 'CARD' | 'ONLINE';
+  paymentReference?: string;
+  notes?: string;
+  operatorName?: string;
+}
+
+export interface ScannedBarcodeRecord {
+  id: string;
+  barcode: string;
+  format?: string;
+  timestamp: string;
+  product: Product;
+  variant?: ProductVariant;
+  actionTaken?: 'ADDED_TO_BILL' | 'INSPECTED' | 'RESTOCKED' | 'RETURNED' | 'EXCHANGED';
 }
 
 export interface Invoice {

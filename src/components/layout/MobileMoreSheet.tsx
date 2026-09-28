@@ -21,6 +21,8 @@ import {
   Percent,
   Star,
   Bell,
+  Barcode,
+  Printer,
   HelpCircle,
   Settings,
   ShieldCheck,
@@ -44,6 +46,14 @@ export const MobileMoreSheet: React.FC<MobileMoreSheetProps> = ({ isOpen, onClos
   };
 
   const groups = [
+    {
+      title: 'BARCODE & RETAIL POS',
+      items: [
+        { label: 'Scan & Bill (POS)', path: '/vendor/billing', icon: Barcode, desc: 'Live counter billing terminal' },
+        { label: 'Barcode Scanner', path: '/vendor/barcode-scanner', icon: Barcode, desc: 'Camera scan & inventory lookup' },
+        { label: 'Print Barcode Labels', path: '/vendor/products/barcode-labels', icon: Printer, desc: 'Custom garment price tags' }
+      ]
+    },
     {
       title: 'STORE & COMPLIANCE',
       items: [

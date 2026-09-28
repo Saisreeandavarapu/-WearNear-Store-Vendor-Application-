@@ -23,6 +23,8 @@ import {
   CreditCard,
   Percent,
   Bell,
+  Barcode,
+  Printer,
   HelpCircle,
   Settings,
   ShieldCheck,
@@ -66,6 +68,7 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({ collapsed, onToggl
       title: 'MAIN',
       items: [
         { label: 'Dashboard', path: '/vendor/dashboard', icon: LayoutDashboard },
+        { label: 'Scan Barcode', path: '/vendor/barcode-scanner', icon: Barcode },
         { label: 'Orders', path: '/vendor/orders', icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
         { label: 'Products', path: '/vendor/products', icon: Package },
         { label: 'Inventory', path: '/vendor/inventory', icon: Layers, badge: lowStockCount > 0 ? lowStockCount : undefined }
@@ -74,6 +77,7 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({ collapsed, onToggl
     {
       title: 'CATALOG',
       items: [
+        { label: 'Barcode Labels', path: '/vendor/products/barcode-labels', icon: Printer },
         { label: 'Categories', path: '/vendor/categories', icon: Grid },
         { label: 'Brands', path: '/vendor/brands', icon: Tag },
         { label: 'Sizes', path: '/vendor/sizes', icon: Maximize2 },

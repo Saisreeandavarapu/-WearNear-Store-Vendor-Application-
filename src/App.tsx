@@ -22,6 +22,8 @@ import { ProductListPage } from './pages/products/ProductListPage';
 import { AddProductPage } from './pages/products/AddProductPage';
 import { ProductDetailPage } from './pages/products/ProductDetailPage';
 import { ProductVariantsPage } from './pages/products/ProductVariantsPage';
+import { BarcodeLabelsPage } from './pages/products/BarcodeLabelsPage';
+import { BarcodeScannerPage } from './pages/barcode/BarcodeScannerPage';
 import { CategoriesPage } from './pages/catalog/CategoriesPage';
 import { BrandsPage } from './pages/catalog/BrandsPage';
 import { SizesPage } from './pages/catalog/SizesPage';
@@ -86,9 +88,13 @@ export const App: React.FC = () => {
         <Route path="/vendor/store-profile/edit" element={<StoreProfilePage />} />
         <Route path="/vendor/store-profile/images" element={<StoreProfilePage />} />
 
+        {/* Barcode Scanner */}
+        <Route path="/vendor/barcode-scanner" element={<BarcodeScannerPage />} />
+
         {/* Products */}
         <Route path="/vendor/products" element={<ProductListPage />} />
         <Route path="/vendor/products/add" element={<AddProductPage />} />
+        <Route path="/vendor/products/barcode-labels" element={<BarcodeLabelsPage />} />
         <Route path="/vendor/products/:id" element={<ProductDetailPage />} />
         <Route path="/vendor/products/:id/edit" element={<AddProductPage />} />
         <Route path="/vendor/products/:id/variants" element={<ProductVariantsPage />} />

@@ -17,7 +17,13 @@ import {
   ChevronRight,
   Eye,
   Store,
-  Layers
+  Layers,
+  Barcode,
+  Printer,
+  Sparkles,
+  Zap,
+  Tag,
+  Camera
 } from 'lucide-react';
 import { StatCard } from '../../components/common/StatCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -25,11 +31,11 @@ import { AnimatedPage } from '../../components/common/AnimatedPage';
 import { BottomSheet } from '../../components/common/BottomSheet';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { staggerContainer, staggerItem } from '../../utils/animations';
+import { staggerContainer, staggerItem, buttonTapVariants } from '../../utils/animations';
 
 export const DashboardPage: React.FC = () => {
   const { user, store } = useAuth();
-  const { orders, inventory, walletBalance, updateStock } = useData();
+  const { orders, inventory, products, invoices, walletBalance, updateStock } = useData();
   const navigate = useNavigate();
 
   const [salesTimeframe, setSalesTimeframe] = useState<'today' | 'week' | 'month'>('today');
@@ -40,6 +46,11 @@ export const DashboardPage: React.FC = () => {
   const todaySalesTotal = orders
     .filter((o) => o.status !== 'CANCELLED')
     .reduce((sum, o) => sum + o.totalAmount, 0);
+
+  const unitsSold = orders.reduce((sum, o) => sum + o.itemCount, 0);
+  const currentTotalStock = products.reduce((sum, p) => sum + p.stock, 0);
+  const inventoryValue = products.reduce((sum, p) => sum + p.stock * p.sellingPrice, 0);
+  const barcodeSalesTotal = invoices.reduce((sum, inv) => sum + inv.finalAmount, 0);
 
   const lowStockItems = inventory.filter((i) => i.status === 'LOW_STOCK');
   const outOfStockItems = inventory.filter((i) => i.status === 'OUT_OF_STOCK');
@@ -73,82 +84,95 @@ export const DashboardPage: React.FC = () => {
         variants={staggerContainer}
         initial="initial"
         animate="animate"
-        className="space-y-4 sm:space-y-6"
+        className="space-y-4 sm:space-y-6 pb-20 md:pb-8"
       >
         {/* Top Welcome & Store Status Header */}
         <motion.div
           variants={staggerItem}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-5 rounded-2xl border border-[#DDD7CA] shadow-xs"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-3xl border border-[#DDD7CA] shadow-xs"
         >
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-xl font-bold text-[#172033]">
-                Good Morning, {user?.name.split(' ')[0] || 'Store Owner'}
+                Good Evening, {user?.name.split(' ')[0] || 'Store Owner'}
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse" />
-                Store Active
+                Store Counter Active
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-[#687085] mt-0.5">
-              {store.name} • {store.address.locality}, {store.address.city} • Instant Delivery Active
+              {store.name} • {store.address.locality}, {store.address.city} • Barcode Retail Terminal Ready
             </p>
           </div>
 
           {/* Quick action buttons header */}
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+            {/* Prominent Desktop Scan & Bill Action */}
+            <motion.div variants={buttonTapVariants} whileTap="tap">
+              <Link
+                to="/vendor/billing"
+                className="wn-btn-primary text-xs sm:text-sm py-2 px-3.5 flex items-center gap-1.5 shadow-md shadow-[#172B82]/20"
+              >
+                <Barcode className="w-4 h-4" />
+                <span>Scan & Bill (POS)</span>
+              </Link>
+            </motion.div>
+
             <Link
               to="/vendor/orders/new"
-              className="wn-btn-primary text-xs py-2 px-3 shadow-xs"
+              className="wn-btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
             >
-              <ShoppingBag className="w-3.5 h-3.5" />
+              <ShoppingBag className="w-3.5 h-3.5 text-[#172B82]" />
               <span>Incoming Orders</span>
               {pendingOrders.length > 0 && (
-                <span className="bg-white text-[#172B82] text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
+                <span className="bg-[#172B82] text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full">
                   {pendingOrders.length}
                 </span>
               )}
             </Link>
 
             <Link
-              to="/vendor/products/add"
-              className="wn-btn-secondary text-xs py-2 px-3"
+              to="/vendor/products/barcode-labels"
+              className="wn-btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 hidden md:flex"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Product</span>
+              <Printer className="w-3.5 h-3.5 text-[#172B82]" />
+              <span>Print Labels</span>
             </Link>
           </div>
         </motion.div>
 
-        {/* Row 1: Primary Order & Sales Statistics (Mobile: 2x2 compact grid) */}
+        {/* MOBILE DASHBOARD PROMINENT SCAN & BILL BANNER */}
+        <motion.div
+          variants={staggerItem}
+          className="lg:hidden p-4 rounded-3xl bg-gradient-to-r from-[#172B82] to-[#243FBA] text-white shadow-lg space-y-2.5"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black tracking-wide uppercase flex items-center gap-1.5">
+              <Barcode className="w-4 h-4 text-emerald-300" />
+              WearNear Retail POS
+            </span>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+              Instant Billing
+            </span>
+          </div>
+
+          <p className="text-xs text-white/85 leading-snug">
+            Fast camera barcode scanning with automatic inventory deduction and receipt generation.
+          </p>
+
+          <Link
+            to="/vendor/billing"
+            className="w-full py-2.5 bg-white text-[#172B82] rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-md"
+          >
+            <Barcode className="w-4 h-4" />
+            <span>Scan & Bill Customer Now</span>
+          </Link>
+        </motion.div>
+
+        {/* INVENTORY INTELLIGENCE & SALES KPI CARDS */}
         <motion.div variants={staggerItem}>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-            <StatCard
-              label="Today's Orders"
-              value={orders.length}
-              numericEnd={orders.length}
-              icon={ShoppingBag}
-              trend={{ value: '+18%', isPositive: true }}
-              subValue="4 In Transit"
-              onClick={() => navigate('/vendor/orders')}
-            />
-            <StatCard
-              label="Pending Orders"
-              value={pendingOrders.length}
-              numericEnd={pendingOrders.length}
-              icon={Clock}
-              badge={pendingOrders.length > 0 ? 'Action' : undefined}
-              subValue="Avg prep: 8m"
-              onClick={() => navigate('/vendor/orders')}
-            />
-            <StatCard
-              label="Completed Today"
-              value={completedToday.length}
-              numericEnd={completedToday.length}
-              icon={CheckCircle2}
-              trend={{ value: '100%', isPositive: true, label: 'on-time' }}
-              onClick={() => navigate('/vendor/orders')}
-            />
             <StatCard
               label="Today's Sales"
               value={`₹${todaySalesTotal.toLocaleString('en-IN')}`}
@@ -157,13 +181,40 @@ export const DashboardPage: React.FC = () => {
               icon={TrendingUp}
               highlight={true}
               trend={{ value: '+24.5%', isPositive: true }}
-              subValue="Ready for settlement"
+              subValue="Retail + Online GMV"
               onClick={() => navigate('/vendor/reports')}
+            />
+            <StatCard
+              label="Units Sold"
+              value={unitsSold}
+              numericEnd={unitsSold}
+              icon={ShoppingBag}
+              trend={{ value: '+14%', isPositive: true }}
+              subValue="Across 4 orders & POS"
+              onClick={() => navigate('/vendor/reports')}
+            />
+            <StatCard
+              label="Current Stock"
+              value={currentTotalStock}
+              numericEnd={currentTotalStock}
+              icon={Layers}
+              subValue="Total shelf garments"
+              onClick={() => navigate('/vendor/inventory')}
+            />
+            <StatCard
+              label="Barcode POS Sales"
+              value={`₹${barcodeSalesTotal.toLocaleString('en-IN')}`}
+              numericEnd={barcodeSalesTotal}
+              prefix="₹"
+              icon={Barcode}
+              trend={{ value: 'Live', isPositive: true }}
+              subValue={`${invoices.length} retail invoices`}
+              onClick={() => navigate('/vendor/billing')}
             />
           </div>
         </motion.div>
 
-        {/* Row 2: Secondary Inventory & Financial Stats (Mobile: 2x2 compact grid) */}
+        {/* INVENTORY HEALTH & FINANCIAL METRICS */}
         <motion.div variants={staggerItem} className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <StatCard
             label="Low Stock Items"
@@ -171,7 +222,7 @@ export const DashboardPage: React.FC = () => {
             numericEnd={lowStockItems.length}
             icon={AlertTriangle}
             subValue="Stock < 5 units"
-            badge={lowStockItems.length > 0 ? 'Restock' : undefined}
+            badge={lowStockItems.length > 0 ? 'Restock Soon' : undefined}
             onClick={() => navigate('/vendor/inventory')}
           />
           <StatCard
@@ -179,7 +230,16 @@ export const DashboardPage: React.FC = () => {
             value={outOfStockItems.length}
             numericEnd={outOfStockItems.length}
             icon={AlertOctagon}
-            subValue="Auto-hidden"
+            subValue="Catalog auto-paused"
+            onClick={() => navigate('/vendor/inventory')}
+          />
+          <StatCard
+            label="Total Inventory Value"
+            value={`₹${inventoryValue.toLocaleString('en-IN')}`}
+            numericEnd={inventoryValue}
+            prefix="₹"
+            icon={Tag}
+            subValue="Retail stock evaluation"
             onClick={() => navigate('/vendor/inventory')}
           />
           <StatCard
@@ -188,60 +248,51 @@ export const DashboardPage: React.FC = () => {
             numericEnd={walletBalance.available}
             prefix="₹"
             icon={Wallet}
-            subValue="Ready to withdraw"
+            subValue="Available to payout"
             onClick={() => navigate('/vendor/wallet')}
-          />
-          <StatCard
-            label="Pending Settlement"
-            value={`₹${walletBalance.pending.toLocaleString('en-IN')}`}
-            numericEnd={walletBalance.pending}
-            prefix="₹"
-            icon={Landmark}
-            subValue="Sun Payout"
-            onClick={() => navigate('/vendor/settlements')}
           />
         </motion.div>
 
-        {/* Quick Action Ribbon */}
-        <motion.div variants={staggerItem} className="bg-white p-3 sm:p-4 rounded-xl border border-[#DDD7CA] shadow-xs">
-          <p className="text-[10px] sm:text-[11px] font-bold text-[#687085] uppercase tracking-wider mb-2">
+        {/* Quick Action Ribbon with Barcode Shortcuts */}
+        <motion.div variants={staggerItem} className="bg-white p-4 rounded-3xl border border-[#DDD7CA] shadow-xs">
+          <p className="text-[10px] sm:text-[11px] font-bold text-[#687085] uppercase tracking-wider mb-2.5">
             Quick Operational Shortcuts
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <Link
+              to="/vendor/billing"
+              className="flex items-center gap-2 p-3 rounded-2xl bg-[#172B82]/5 hover:bg-[#172B82]/10 border border-[#172B82]/20 text-xs font-bold text-[#172B82] transition-all"
+            >
+              <Barcode className="w-4 h-4 shrink-0" />
+              <span className="truncate">Scan & Bill (POS)</span>
+            </Link>
+            <Link
+              to="/vendor/barcode-scanner"
+              className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFFCF5] hover:bg-[#F5F0E6] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
+            >
+              <Camera className="w-4 h-4 text-[#172B82] shrink-0" />
+              <span className="truncate">Scan Barcode</span>
+            </Link>
+            <Link
+              to="/vendor/products/barcode-labels"
+              className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFFCF5] hover:bg-[#F5F0E6] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
+            >
+              <Printer className="w-4 h-4 text-[#172B82] shrink-0" />
+              <span className="truncate">Print Labels</span>
+            </Link>
+            <Link
+              to="/vendor/inventory/transactions"
+              className="flex items-center gap-2 p-3 rounded-2xl bg-[#FFFCF5] hover:bg-[#F5F0E6] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
+            >
+              <FileText className="w-4 h-4 text-[#172B82] shrink-0" />
+              <span className="truncate">Audit Ledger</span>
+            </Link>
             <Link
               to="/vendor/products/add"
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-[#FFFCF5] hover:bg-[#F5F0E6] active:scale-[0.98] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
+              className="col-span-2 sm:col-span-1 flex items-center gap-2 p-3 rounded-2xl bg-[#FFFCF5] hover:bg-[#F5F0E6] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
             >
               <Plus className="w-4 h-4 text-[#172B82] shrink-0" />
               <span className="truncate">Add Product</span>
-            </Link>
-            <Link
-              to="/vendor/inventory"
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-[#FFFCF5] hover:bg-[#F5F0E6] active:scale-[0.98] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
-            >
-              <RefreshCw className="w-4 h-4 text-[#172B82] shrink-0" />
-              <span className="truncate">Update Stock</span>
-            </Link>
-            <Link
-              to="/vendor/orders"
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-[#FFFCF5] hover:bg-[#F5F0E6] active:scale-[0.98] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
-            >
-              <ShoppingBag className="w-4 h-4 text-[#172B82] shrink-0" />
-              <span className="truncate">View Orders</span>
-            </Link>
-            <Link
-              to="/vendor/billing/create"
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-[#FFFCF5] hover:bg-[#F5F0E6] active:scale-[0.98] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
-            >
-              <FileText className="w-4 h-4 text-[#172B82] shrink-0" />
-              <span className="truncate">Generate Bill</span>
-            </Link>
-            <Link
-              to="/vendor/settlements"
-              className="col-span-2 sm:col-span-1 flex items-center gap-2 p-2.5 rounded-lg bg-[#FFFCF5] hover:bg-[#F5F0E6] active:scale-[0.98] border border-[#DDD7CA] text-xs font-semibold text-[#172033] transition-all"
-            >
-              <Landmark className="w-4 h-4 text-[#172B82] shrink-0" />
-              <span className="truncate">Settlements</span>
             </Link>
           </div>
         </motion.div>
@@ -249,23 +300,23 @@ export const DashboardPage: React.FC = () => {
         {/* Main Grid: Responsive Sales Chart + Inventory Alerts */}
         <motion.div variants={staggerItem} className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
           {/* Sales Chart (8 cols) */}
-          <div className="lg:col-span-8 bg-white p-3.5 sm:p-5 rounded-2xl border border-[#DDD7CA] shadow-xs flex flex-col justify-between">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4 pb-2.5 border-b border-[#DDD7CA]">
+          <div className="lg:col-span-8 bg-white p-4 sm:p-6 rounded-3xl border border-[#DDD7CA] shadow-xs flex flex-col justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-[#DDD7CA]">
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-[#172033]">
-                  Sales & Revenue Analytics
+                  Sales & Revenue Velocity
                 </h3>
                 <p className="text-[11px] sm:text-xs text-[#687085]">
-                  Weekly store gross volume: ₹2,60,600 across 115 orders
+                  Live counter sales + WearNear local delivery volume
                 </p>
               </div>
 
-              <div className="flex items-center gap-1 bg-[#FFFCF5] p-1 rounded-lg border border-[#DDD7CA] self-start sm:self-auto text-xs">
+              <div className="flex items-center gap-1 bg-[#FFFCF5] p-1 rounded-xl border border-[#DDD7CA] self-start sm:self-auto text-xs">
                 {(['today', 'week', 'month'] as const).map((t) => (
                   <button
                     key={t}
                     onClick={() => setSalesTimeframe(t)}
-                    className={`px-2.5 py-1 rounded capitalize font-semibold transition-colors ${
+                    className={`px-3 py-1 rounded-lg capitalize font-semibold transition-colors ${
                       salesTimeframe === t
                         ? 'bg-[#172B82] text-white shadow-xs'
                         : 'text-[#687085] hover:text-[#172033]'
@@ -277,76 +328,70 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* SVG Bar Chart with Responsive Aspect */}
-            <div className="w-full pt-3 pb-1">
-              <div className="h-40 sm:h-52 flex items-end gap-1.5 sm:gap-4 justify-between px-1 sm:px-4">
-                {weeklyData.map((d, i) => {
-                  const heightPercent = Math.round((d.sales / maxSale) * 100);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5 sm:gap-2 group h-full justify-end">
-                      {/* Tooltip on hover */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] sm:text-xs font-bold text-[#172033] bg-[#F5F0E6] px-1.5 py-0.5 rounded border border-[#DDD7CA] pointer-events-none mb-0.5 text-center whitespace-nowrap">
-                        ₹{(d.sales / 1000).toFixed(1)}k
-                      </div>
+            {/* Responsive SVG Bar Chart */}
+            <div className="h-44 sm:h-52 w-full flex items-end justify-between gap-2 pt-4 px-2">
+              {weeklyData.map((d) => {
+                const heightPercent = Math.round((d.sales / maxSale) * 100);
+                const isSelected = d.label === 'Sun';
 
-                      {/* Bar */}
-                      <div className="w-full bg-[#172B82]/10 rounded-t-lg relative overflow-hidden flex flex-col justify-end" style={{ height: `${heightPercent}%` }}>
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: '100%' }}
-                          transition={{ duration: 0.4, delay: i * 0.05 }}
-                          className="w-full bg-gradient-to-t from-[#172B82] to-[#3155D8] rounded-t-lg group-hover:from-[#243FBA] group-hover:to-[#3155D8] transition-all"
-                        />
-                      </div>
+                return (
+                  <div key={d.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                    <span className="text-[10px] font-mono text-[#687085] opacity-0 group-hover:opacity-100 transition-opacity">
+                      ₹{(d.sales / 1000).toFixed(0)}k
+                    </span>
 
-                      {/* Day label */}
-                      <span className="text-[10px] sm:text-xs font-semibold text-[#687085] group-hover:text-[#172B82]">
-                        {d.label}
-                      </span>
+                    <div className="w-full max-w-[36px] bg-[#F5F0E6] rounded-xl overflow-hidden h-full flex items-end">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${heightPercent}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                        className={`w-full rounded-xl transition-all ${
+                          isSelected
+                            ? 'bg-[#172B82] shadow-sm'
+                            : 'bg-[#3155D8]/70 hover:bg-[#172B82]'
+                        }`}
+                      />
                     </div>
-                  );
-                })}
-              </div>
+
+                    <span className={`text-[11px] font-bold ${isSelected ? 'text-[#172B82]' : 'text-[#687085]'}`}>
+                      {d.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-[#DDD7CA] flex items-center justify-between text-[11px] sm:text-xs text-[#687085]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#172B82]" />
-                Gross Sales Volume
-              </span>
-              <Link
-                to="/vendor/reports"
-                className="font-semibold text-[#172B82] hover:underline flex items-center gap-1"
-              >
-                Detailed Breakdown <ArrowRight className="w-3 h-3" />
+            <div className="mt-4 pt-3 border-t border-[#DDD7CA] flex items-center justify-between text-xs">
+              <span className="text-[#687085]">Highest peak: Sunday (₹64,200)</span>
+              <Link to="/vendor/reports" className="text-xs font-bold text-[#172B82] hover:underline flex items-center gap-1">
+                <span>View Full Reports</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
 
-          {/* Inventory Critical Alerts (4 cols) */}
-          <div className="lg:col-span-4 bg-white p-3.5 sm:p-5 rounded-2xl border border-[#DDD7CA] shadow-xs flex flex-col justify-between">
+          {/* Urgent Inventory Alert Card (4 cols) */}
+          <div className="lg:col-span-4 bg-white p-4 sm:p-6 rounded-3xl border border-[#DDD7CA] shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#DDD7CA]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#DDD7CA]">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
-                  <h3 className="text-sm font-bold text-[#172033]">Inventory Alerts</h3>
+                  <h3 className="text-sm font-bold text-[#172033]">Stock Restock Alerts</h3>
                 </div>
-                <span className="text-[11px] font-bold text-[#DC2626] bg-[#DC2626]/10 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                   {lowStockItems.length + outOfStockItems.length} Urgent
                 </span>
               </div>
 
-              <div className="space-y-2 mt-3">
-                {[...outOfStockItems, ...lowStockItems].slice(0, 3).map((item) => (
+              <div className="space-y-2.5 pt-3">
+                {[...lowStockItems, ...outOfStockItems].slice(0, 4).map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 rounded-xl border border-[#DDD7CA] bg-[#FFFCF5] hover:border-[#172B82]/30 transition-all flex items-center justify-between gap-2"
+                    className="p-3 rounded-2xl bg-[#FFFCF5] border border-[#DDD7CA] flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#172033] truncate">
-                        {item.productName}
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] text-[#687085]">
+                      <p className="font-bold text-[#172033] truncate">{item.productName}</p>
+                      <p className="text-[11px] text-[#687085]">
                         SKU: {item.sku} • Stock:{' '}
                         <strong className={item.availableStock === 0 ? 'text-[#DC2626]' : 'text-[#F59E0B]'}>
                           {item.availableStock}
@@ -360,7 +405,7 @@ export const DashboardPage: React.FC = () => {
                         setSelectedStockItem(item);
                         setStockInput(item.availableStock + 10);
                       }}
-                      className="wn-btn-secondary text-[11px] py-1 px-2.5 shrink-0 min-h-[36px]"
+                      className="wn-btn-secondary text-[11px] py-1 px-2.5 shrink-0"
                     >
                       + Restock
                     </motion.button>
@@ -369,7 +414,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-[#DDD7CA]">
+            <div className="mt-3 pt-3 border-t border-[#DDD7CA]">
               <Link
                 to="/vendor/inventory"
                 className="text-xs font-semibold text-[#172B82] hover:underline flex items-center justify-between"
@@ -381,104 +426,48 @@ export const DashboardPage: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Recent Orders Section (Responsive Table on Desktop, Cards on Mobile) */}
-        <motion.div variants={staggerItem} className="bg-white rounded-2xl border border-[#DDD7CA] shadow-xs overflow-hidden">
-          <div className="p-3.5 sm:p-5 border-b border-[#DDD7CA] flex items-center justify-between bg-[#FFFCF5]">
+        {/* Recent Orders Section */}
+        <motion.div variants={staggerItem} className="bg-white rounded-3xl border border-[#DDD7CA] shadow-xs overflow-hidden">
+          <div className="p-4 sm:p-5 border-b border-[#DDD7CA] flex items-center justify-between bg-[#FFFCF5]">
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-[#172033]">Recent Orders</h3>
-              <p className="text-[11px] sm:text-xs text-[#687085]">Instant orders within Bandra & Khar radius</p>
+              <h3 className="text-sm sm:text-base font-bold text-[#172033]">Recent Orders & POS Sales</h3>
+              <p className="text-[11px] sm:text-xs text-[#687085]">Instant local orders & counter sales</p>
             </div>
             <Link
               to="/vendor/orders"
-              className="wn-btn-secondary text-xs py-1.5 px-3 min-h-[36px]"
+              className="wn-btn-secondary text-xs py-1.5 px-3"
             >
               <span>View All ({orders.length})</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          {/* DESKTOP TABLE */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F5F0E6] text-[#687085] uppercase text-[10px] tracking-wider border-b border-[#DDD7CA]">
-                <tr>
-                  <th className="py-3 px-4">Order ID</th>
-                  <th className="py-3 px-4">Customer & Distance</th>
-                  <th className="py-3 px-4">Items</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#DDD7CA]/60">
-                {orders.slice(0, 4).map((order) => (
-                  <tr key={order.id} className="hover:bg-[#FFFCF5] transition-colors">
-                    <td className="py-3 px-4 font-bold text-[#172B82]">
-                      <Link to={`/vendor/orders/${order.id}`} className="hover:underline">
-                        {order.orderNumber}
-                      </Link>
-                      <p className="text-[10px] text-[#687085] font-normal">{order.createdAt}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <p className="font-semibold text-[#172033]">{order.customer.name}</p>
-                      <p className="text-[11px] text-[#687085]">{order.customer.distanceKm} km away</p>
-                    </td>
-                    <td className="py-3 px-4 text-[#172033]">
-                      {order.itemCount} items
-                      <p className="text-[11px] text-[#687085] truncate max-w-[180px]">
-                        {order.items[0]?.productName}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-[#172033]">
-                      ₹{order.totalAmount}
-                      <p className="text-[10px] text-emerald-600 font-semibold">{order.paymentMethod.replace(/_/g, ' ')}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <StatusBadge status={order.status} size="sm" />
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Link
-                        to={`/vendor/orders/${order.id}`}
-                        className="wn-btn-secondary text-[11px] py-1 px-2.5 inline-flex"
-                      >
-                        <Eye className="w-3 h-3" /> View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* MOBILE COMPACT CARDS */}
-          <div className="md:hidden divide-y divide-[#DDD7CA]/60">
+          <div className="divide-y divide-[#DDD7CA]/60">
             {orders.slice(0, 4).map((order) => (
-              <motion.div
+              <div
                 key={order.id}
-                whileTap={{ scale: 0.99 }}
-                className="p-3.5 space-y-2 hover:bg-[#FFFCF5] active:bg-[#FFFCF5] transition-colors"
+                className="p-3.5 sm:p-4 hover:bg-[#FFFCF5] transition-colors flex items-center justify-between gap-3 text-xs"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-[#172B82]">{order.orderNumber}</span>
-                  <StatusBadge status={order.status} size="sm" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#172B82]">{order.orderNumber}</span>
+                    <StatusBadge status={order.status} size="sm" />
+                  </div>
+                  <p className="text-[11px] text-[#687085] mt-0.5">
+                    {order.customer.name} • {order.items[0]?.productName} ({order.itemCount} items)
+                  </p>
                 </div>
-                <div className="flex items-center justify-between text-xs text-[#172033]">
-                  <span className="font-semibold">{order.customer.name} ({order.customer.distanceKm} km)</span>
-                  <span className="font-bold">₹{order.totalAmount}</span>
-                </div>
-                <p className="text-[11px] text-[#687085] truncate">
-                  {order.itemCount} item(s): {order.items[0]?.productName}
-                </p>
-                <div className="pt-1 flex items-center justify-between text-[11px]">
-                  <span className="text-[#687085]">{order.createdAt}</span>
-                  <Link
-                    to={`/vendor/orders/${order.id}`}
-                    className="wn-btn-secondary text-xs py-1.5 px-3 min-h-[36px]"
-                  >
-                    View Details
+
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className="font-bold text-sm text-[#172033]">₹{order.totalAmount}</span>
+                    <span className="text-[10px] text-[#687085] block">{order.createdAt}</span>
+                  </div>
+                  <Link to={`/vendor/orders/${order.id}`} className="wn-btn-secondary text-xs py-1 px-2.5">
+                    View
                   </Link>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </motion.div>

@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle2, XCircle, RotateCcw, Barcode, Camera, Plus } from 'lucide-react';
 import { PageHeader } from '../../components/common/PageHeader';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AnimatedPage } from '../../components/common/AnimatedPage';
+import { ReturnScannerModal } from '../../components/operations/ReturnScannerModal';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { ReturnRequest } from '../../types';
-import { staggerContainer, staggerItem } from '../../utils/animations';
+import { staggerContainer, staggerItem, buttonTapVariants } from '../../utils/animations';
 
 export const ReturnsPage: React.FC = () => {
   const { returns, updateReturnStatus } = useData();
   const { success } = useToast();
 
   const [activeTab, setActiveTab] = useState<string>('ALL');
+  const [isReturnScannerOpen, setIsReturnScannerOpen] = useState(false);
 
   const filtered = returns.filter((r) => activeTab === 'ALL' || r.status === activeTab);
 
@@ -27,17 +29,29 @@ export const ReturnsPage: React.FC = () => {
       <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-0">
         <PageHeader
           title="Returns & Reverse Logistics"
-          subtitle="Manage 7-day trial return requests and physical garment quality inspection."
+          subtitle="Process trial return requests, inspect physical tags with barcode scanner, and restore shelf inventory."
           breadcrumbs={[{ label: 'Operations' }, { label: 'Returns' }]}
+          actions={
+            <motion.button
+              variants={buttonTapVariants}
+              whileTap="tap"
+              onClick={() => setIsReturnScannerOpen(true)}
+              className="wn-btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-[#172B82]/20"
+            >
+              <Barcode className="w-4 h-4" />
+              <span>Scan Barcode to Return</span>
+            </motion.button>
+          }
         />
 
         {/* Tabs */}
-        <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#DDD7CA] shadow-xs flex items-center gap-1.5 overflow-x-auto text-xs scrollbar-none">
+        <div className="bg-white p-3 sm:p-4 rounded-2xl border border-[#DDD7CA] shadow-xs flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar">
           {['ALL', 'NEW', 'APPROVED', 'PROCESSING', 'COMPLETED', 'REJECTED'].map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition-colors min-h-[34px] ${
+              className={`px-3.5 py-1.5 rounded-xl font-bold shrink-0 transition-colors min-h-[34px] ${
                 activeTab === tab
                   ? 'bg-[#172B82] text-white shadow-xs'
                   : 'bg-[#FFFCF5] text-[#687085] hover:text-[#172033] border border-[#DDD7CA]'
@@ -60,7 +74,7 @@ export const ReturnsPage: React.FC = () => {
               key={ret.id}
               variants={staggerItem}
               whileTap={{ scale: 0.99 }}
-              className="bg-white rounded-2xl border border-[#DDD7CA] p-4 sm:p-5 shadow-xs space-y-3.5 flex flex-col justify-between select-none"
+              className="bg-white rounded-3xl border border-[#DDD7CA] p-4 sm:p-5 shadow-xs space-y-3.5 flex flex-col justify-between select-none"
             >
               <div>
                 <div className="flex items-center justify-between pb-2.5 border-b border-[#DDD7CA]">
@@ -77,10 +91,15 @@ export const ReturnsPage: React.FC = () => {
 
                 <div className="space-y-1.5 text-xs text-[#172033] pt-1">
                   <p className="font-semibold">{ret.productName}</p>
-                  <p className="text-[#687085] text-[11px] bg-[#FFFCF5] p-2.5 rounded-lg border border-[#DDD7CA]">
-                    Reason: <strong>{ret.reason}</strong>
+                  <p className="text-[#687085] text-[11px] bg-[#FFFCF5] p-2.5 rounded-xl border border-[#DDD7CA]">
+                    Reason: <strong>{ret.reason}</strong> — {ret.reasonText}
                   </p>
-                  <p className="text-[10px] text-[#687085]">Requested: {ret.requestDate}</p>
+                  <div className="flex justify-between items-center text-[10px] text-[#687085] pt-1">
+                    <span>Requested: {ret.requestDate}</span>
+                    <span className="font-bold text-[#172033] text-xs">
+                      Value: ₹{ret.amount?.toLocaleString('en-IN') || 1799}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -91,7 +110,7 @@ export const ReturnsPage: React.FC = () => {
                     onClick={() => handleAction(ret.id, 'APPROVED')}
                     className="flex-1 wn-btn-primary py-2 text-xs flex items-center justify-center gap-1.5 min-h-[38px]"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Approve Pickup
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Approve & Inspect
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
@@ -106,6 +125,14 @@ export const ReturnsPage: React.FC = () => {
           ))}
         </motion.div>
       </div>
+
+      {/* Return Scanner Modal */}
+      {isReturnScannerOpen && (
+        <ReturnScannerModal
+          isOpen={true}
+          onClose={() => setIsReturnScannerOpen(false)}
+        />
+      )}
     </AnimatedPage>
   );
 };

@@ -13,8 +13,11 @@ import {
   ExternalLink,
   Tag,
   ShieldCheck,
-  Share2
+  Share2,
+  Printer,
+  Barcode
 } from 'lucide-react';
+import { ProductBarcode } from '../../components/barcode/ProductBarcode';
 import { AnimatedPage } from '../../components/common/AnimatedPage';
 import { PageHeader } from '../../components/common/PageHeader';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -56,6 +59,15 @@ export const ProductDetailPage: React.FC = () => {
         badge={<StatusBadge status={product.status} size="md" />}
         actions={
           <div className="flex items-center gap-2">
+            <motion.div variants={buttonTapVariants} whileTap="tap">
+              <Link
+                to={`/vendor/products/barcode-labels?productId=${product.id}`}
+                className="wn-btn-primary text-xs flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Labels</span>
+              </Link>
+            </motion.div>
             <motion.div variants={buttonTapVariants} whileTap="tap">
               <Link
                 to={`/vendor/products/${product.id}/variants`}
@@ -202,6 +214,40 @@ export const ProductDetailPage: React.FC = () => {
                   Size {s}
                 </motion.span>
               ))}
+            </div>
+          </div>
+
+          {/* Barcode Tags & Retail Printing */}
+          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-[#DDD7CA] shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Barcode className="w-4 h-4 text-[#172B82]" />
+                <h4 className="text-sm font-bold text-[#172033]">Barcode & Retail Tags</h4>
+              </div>
+              <Link
+                to={`/vendor/products/barcode-labels?productId=${product.id}`}
+                className="text-xs font-bold text-[#172B82] hover:underline flex items-center gap-1"
+              >
+                <Printer className="w-3 h-3" />
+                <span>Print All Labels →</span>
+              </Link>
+            </div>
+
+            <div className="p-3.5 bg-[#FFFCF5] rounded-2xl border border-[#DDD7CA] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="text-[10px] text-[#687085] block font-medium">Master Barcode</span>
+                <span className="font-mono font-bold text-[#172033]">
+                  {product.barcode || product.variants?.[0]?.barcode || '8901234567011'}
+                </span>
+                <span className="text-[10px] text-emerald-700 block font-semibold">Standard EAN-13</span>
+              </div>
+              <ProductBarcode
+                barcode={product.barcode || product.variants?.[0]?.barcode || '8901234567011'}
+                height={32}
+                width={1.3}
+                fontSize={10}
+                showActions={true}
+              />
             </div>
           </div>
         </div>

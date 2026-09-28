@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   Product,
+  ProductVariant,
   Category,
   Brand,
   Order,
   OrderStatus,
   InventoryItem,
   InventoryTransaction,
+  InventoryTransactionType,
   Invoice,
   Settlement,
   WalletTransaction,
@@ -19,7 +21,9 @@ import {
   StoreOffer,
   ReviewItem,
   SupportTicket,
-  KycDocument
+  KycDocument,
+  POSSaleData,
+  ScannedBarcodeRecord
 } from '../types';
 
 interface DataContextType {
@@ -45,6 +49,7 @@ interface DataContextType {
   reviews: ReviewItem[];
   supportTickets: SupportTicket[];
   kycDocuments: KycDocument[];
+  recentScans: ScannedBarcodeRecord[];
 
   // Action methods
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'salesCount' | 'rating'>) => Product;
@@ -53,7 +58,7 @@ interface DataContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => void;
   acceptOrder: (orderId: string) => void;
   rejectOrder: (orderId: string, reason?: string) => void;
-  updateStock: (productId: string, newStock: number, reason: string) => void;
+  updateStock: (productId: string, newStock: number, reason: string, variantId?: string) => void;
   createInvoice: (orderId: string) => Invoice;
   addStaffMember: (member: Omit<StaffMember, 'id' | 'joinedDate'>) => void;
   updateStaffMember: (id: string, updates: Partial<StaffMember>) => void;
@@ -66,6 +71,40 @@ interface DataContextType {
   addSupportTicket: (ticket: Omit<SupportTicket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt' | 'messages'> & { initialMessage: string }) => void;
   replyToSupportTicket: (ticketId: string, message: string) => void;
   uploadKycDoc: (id: string, fileName: string) => void;
+
+  // Barcode & POS Actions
+  processPOSSale: (bill: POSSaleData) => { success: boolean; invoice?: Invoice; order?: Order; error?: string };
+  processBarcodeReturn: (returnData: {
+    orderNumber: string;
+    customerName: string;
+    productName: string;
+    sku: string;
+    barcode: string;
+    productId: string;
+    variantId?: string;
+    quantity: number;
+    reason: ReturnRequest['reason'];
+    reasonText: string;
+    amount: number;
+    operatorName?: string;
+  }) => boolean;
+  processBarcodeExchange: (exchangeData: {
+    orderNumber: string;
+    customerName: string;
+    returnedBarcode: string;
+    replacementBarcode: string;
+    operatorName?: string;
+  }) => { success: boolean; error?: string };
+  performManualStockAdjustment: (params: {
+    productId: string;
+    variantId?: string;
+    change: number;
+    type: InventoryTransactionType;
+    reason: string;
+    operatorName?: string;
+  }) => { success: boolean; error?: string };
+  addRecentScan: (scan: ScannedBarcodeRecord) => void;
+  clearRecentScans: () => void;
 }
 
 const INITIAL_CATEGORIES: Category[] = [
@@ -102,6 +141,8 @@ const INITIAL_PRODUCTS: Product[] = [
     id: 'prod_101',
     name: 'Pure Mulberry Silk Festive Kurta Set',
     sku: 'VL-MSK-01',
+    barcode: '8901234567012',
+    barcodeFormat: 'EAN-13',
     category: "Men's Shirts & Kurtas",
     categoryId: 'cat_1',
     brand: 'Vogue Loom Signature',
@@ -123,10 +164,10 @@ const INITIAL_PRODUCTS: Product[] = [
       { name: 'Pearl Ivory', hex: '#F9FAFB' }
     ],
     variants: [
-      { id: 'v1', sku: 'VL-MSK-01-BLU-S', size: 'S', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 6 },
-      { id: 'v2', sku: 'VL-MSK-01-BLU-M', size: 'M', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 8 },
-      { id: 'v3', sku: 'VL-MSK-01-BLU-L', size: 'L', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 5 },
-      { id: 'v4', sku: 'VL-MSK-01-BLU-XL', size: 'XL', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 5 }
+      { id: 'v1', sku: 'VL-MSK-01-BLU-S', barcode: '8901234567012', barcodeFormat: 'EAN-13', size: 'S', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 6, availableStock: 6, reservedStock: 0 },
+      { id: 'v2', sku: 'VL-MSK-01-BLU-M', barcode: '8901234567029', barcodeFormat: 'EAN-13', size: 'M', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 8, availableStock: 7, reservedStock: 1 },
+      { id: 'v3', sku: 'VL-MSK-01-BLU-L', barcode: '8901234567036', barcodeFormat: 'EAN-13', size: 'L', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 5, availableStock: 5, reservedStock: 0 },
+      { id: 'v4', sku: 'VL-MSK-01-BLU-XL', barcode: '8901234567043', barcodeFormat: 'EAN-13', size: 'XL', color: 'Navy Imperial', colorHex: '#1E3A8A', price: 3299, stock: 5, availableStock: 5, reservedStock: 0 }
     ],
     createdAt: '2026-09-10',
     updatedAt: '2026-09-26',
@@ -137,6 +178,8 @@ const INITIAL_PRODUCTS: Product[] = [
     id: 'prod_102',
     name: 'Relaxed Fit 14oz Japanese Selvedge Denim',
     sku: 'RS-DNM-08',
+    barcode: '8901234567050',
+    barcodeFormat: 'EAN-13',
     category: 'Trousers & Denim Jeans',
     categoryId: 'cat_4',
     brand: 'Raw Soul Denim',
@@ -158,10 +201,10 @@ const INITIAL_PRODUCTS: Product[] = [
       { name: 'Midnight Black', hex: '#111827' }
     ],
     variants: [
-      { id: 'v5', sku: 'RS-DNM-08-30', size: '30', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 2 },
-      { id: 'v6', sku: 'RS-DNM-08-32', size: '32', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 3 },
-      { id: 'v7', sku: 'RS-DNM-08-34', size: '34', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 2 },
-      { id: 'v8', sku: 'RS-DNM-08-36', size: '36', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 1 }
+      { id: 'v5', sku: 'RS-DNM-08-30', barcode: '8901234567050', barcodeFormat: 'EAN-13', size: '30', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 2, availableStock: 2, reservedStock: 0 },
+      { id: 'v6', sku: 'RS-DNM-08-32', barcode: '8901234567067', barcodeFormat: 'EAN-13', size: '32', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 3, availableStock: 1, reservedStock: 2 },
+      { id: 'v7', sku: 'RS-DNM-08-34', barcode: '8901234567074', barcodeFormat: 'EAN-13', size: '34', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 2, availableStock: 2, reservedStock: 0 },
+      { id: 'v8', sku: 'RS-DNM-08-36', barcode: '8901234567081', barcodeFormat: 'EAN-13', size: '36', color: 'Indigo Deep', colorHex: '#1e3a8a', price: 2899, stock: 1, availableStock: 1, reservedStock: 0 }
     ],
     createdAt: '2026-09-12',
     updatedAt: '2026-09-25',
@@ -172,6 +215,8 @@ const INITIAL_PRODUCTS: Product[] = [
     id: 'prod_103',
     name: 'French Linen Button-Down Resort Shirt',
     sku: 'US-LNN-22',
+    barcode: '8901234567098',
+    barcodeFormat: 'EAN-13',
     category: "Men's Shirts & Kurtas",
     categoryId: 'cat_1',
     brand: 'Urban Stitch Co',
@@ -191,7 +236,11 @@ const INITIAL_PRODUCTS: Product[] = [
       { name: 'Sage Olive', hex: '#3F6212' },
       { name: 'Pearl Ivory', hex: '#F9FAFB' }
     ],
-    variants: [],
+    variants: [
+      { id: 'v9', sku: 'US-LNN-22-M', barcode: '8901234567104', barcodeFormat: 'EAN-13', size: 'M', color: 'Sage Olive', colorHex: '#3F6212', price: 1799, stock: 12, availableStock: 11, reservedStock: 1 },
+      { id: 'v10', sku: 'US-LNN-22-L', barcode: '8901234567111', barcodeFormat: 'EAN-13', size: 'L', color: 'Sage Olive', colorHex: '#3F6212', price: 1799, stock: 15, availableStock: 13, reservedStock: 2 },
+      { id: 'v11', sku: 'US-LNN-22-XL', barcode: '8901234567128', barcodeFormat: 'EAN-13', size: 'XL', color: 'Sage Olive', colorHex: '#3F6212', price: 1799, stock: 8, availableStock: 8, reservedStock: 0 }
+    ],
     createdAt: '2026-09-15',
     updatedAt: '2026-09-24',
     salesCount: 165,
@@ -201,6 +250,8 @@ const INITIAL_PRODUCTS: Product[] = [
     id: 'prod_104',
     name: 'Handcrafted Heritage Kolhapuri Mules',
     sku: 'AK-KHL-04',
+    barcode: '8901234567135',
+    barcodeFormat: 'EAN-13',
     category: 'Handcrafted Footwear',
     categoryId: 'cat_5',
     brand: 'Artisan Kolhapuri',
@@ -217,7 +268,12 @@ const INITIAL_PRODUCTS: Product[] = [
     ],
     sizes: ['7', '8', '9', '10'],
     colors: [{ name: 'Warm Ochre', hex: '#D97706' }],
-    variants: [],
+    variants: [
+      { id: 'v12', sku: 'AK-KHL-04-7', barcode: '8901234567142', barcodeFormat: 'EAN-13', size: '7', color: 'Warm Ochre', colorHex: '#D97706', price: 2199, stock: 1, availableStock: 1, reservedStock: 0 },
+      { id: 'v13', sku: 'AK-KHL-04-8', barcode: '8901234567159', barcodeFormat: 'EAN-13', size: '8', color: 'Warm Ochre', colorHex: '#D97706', price: 2199, stock: 1, availableStock: 1, reservedStock: 0 },
+      { id: 'v14', sku: 'AK-KHL-04-9', barcode: '8901234567166', barcodeFormat: 'EAN-13', size: '9', color: 'Warm Ochre', colorHex: '#D97706', price: 2199, stock: 1, availableStock: 1, reservedStock: 0 },
+      { id: 'v14b', sku: 'AK-KHL-04-10', barcode: '8901234567173', barcodeFormat: 'EAN-13', size: '10', color: 'Warm Ochre', colorHex: '#D97706', price: 2199, stock: 0, availableStock: 0, reservedStock: 0 }
+    ],
     createdAt: '2026-09-18',
     updatedAt: '2026-09-27',
     salesCount: 64,
@@ -227,6 +283,8 @@ const INITIAL_PRODUCTS: Product[] = [
     id: 'prod_105',
     name: 'Chanderi Zari Embroidered Anarkali Set',
     sku: 'IW-CHN-90',
+    barcode: '8901234567180',
+    barcodeFormat: 'EAN-13',
     category: "Women's Ethnic & Sarees",
     categoryId: 'cat_2',
     brand: 'IndiWeave Crafts',
@@ -243,7 +301,10 @@ const INITIAL_PRODUCTS: Product[] = [
     ],
     sizes: ['S', 'M', 'L'],
     colors: [{ name: 'Crimson Rust', hex: '#991B1B' }],
-    variants: [],
+    variants: [
+      { id: 'v15', sku: 'IW-CHN-90-S', barcode: '8901234567197', barcodeFormat: 'EAN-13', size: 'S', color: 'Crimson Rust', colorHex: '#991B1B', price: 5499, stock: 0, availableStock: 0, reservedStock: 0 },
+      { id: 'v16', sku: 'IW-CHN-90-M', barcode: '8901234567203', barcodeFormat: 'EAN-13', size: 'M', color: 'Crimson Rust', colorHex: '#991B1B', price: 5499, stock: 0, availableStock: 0, reservedStock: 0 }
+    ],
     createdAt: '2026-09-05',
     updatedAt: '2026-09-27',
     salesCount: 92,
@@ -451,10 +512,10 @@ const INITIAL_INVENTORY: InventoryItem[] = [
 ];
 
 const INITIAL_TRANSACTIONS: InventoryTransaction[] = [
-  { id: 'tx_1', date: 'Today, 04:30 PM', productName: 'Pure Mulberry Silk Festive Kurta Set', sku: 'VL-MSK-01-BLU-M', type: 'RESERVED', quantityChange: -1, previousStock: 25, newStock: 24, reason: 'Order #WN-8821 allocated', performedBy: 'System Auto' },
-  { id: 'tx_2', date: 'Today, 02:15 PM', productName: 'French Linen Button-Down Resort Shirt', sku: 'US-LNN-22', type: 'STOCK_ADDED', quantityChange: 20, previousStock: 15, newStock: 35, reason: 'Vendor Shipment Inward Batch #441', performedBy: 'Vikramaditya (Owner)' },
-  { id: 'tx_3', date: 'Yesterday, 06:40 PM', productName: 'Relaxed Fit 14oz Japanese Selvedge Denim', sku: 'RS-DNM-08', type: 'STOCK_DEDUCTED', quantityChange: -2, previousStock: 10, newStock: 8, reason: 'Store Counter Sale POS', performedBy: 'Pooja (Manager)' },
-  { id: 'tx_4', date: '25 Sep 2026', productName: 'Chanderi Zari Embroidered Anarkali Set', sku: 'IW-CHN-90', type: 'STOCK_DEDUCTED', quantityChange: -4, previousStock: 4, newStock: 0, reason: 'Flash Festival Sale Deliveries', performedBy: 'System Auto' }
+  { id: 'tx_1', date: 'Today, 04:30 PM', time: '04:30 PM', productName: 'Pure Mulberry Silk Festive Kurta Set', sku: 'VL-MSK-01-BLU-M', variantInfo: 'Navy Imperial · Size M', barcode: '8901234567028', type: 'RESERVED', quantityChange: -1, previousStock: 25, newStock: 24, reason: 'Online Order #WN-8821 allocated', reference: '#WN-8821', performedBy: 'System Auto' },
+  { id: 'tx_2', date: 'Today, 02:15 PM', time: '02:15 PM', productName: 'French Linen Button-Down Resort Shirt', sku: 'US-LNN-22-L', variantInfo: 'Sage Olive · Size L', barcode: '8901234567110', type: 'STOCK_ADDED', quantityChange: 20, previousStock: 15, newStock: 35, reason: 'Vendor Shipment Inward Batch #441', reference: 'BATCH-441', performedBy: 'Vikramaditya (Owner)' },
+  { id: 'tx_3', date: 'Yesterday, 06:40 PM', time: '06:40 PM', productName: 'Relaxed Fit 14oz Japanese Selvedge Denim', sku: 'RS-DNM-08-32', variantInfo: 'Indigo Deep · Size 32', barcode: '8901234567066', type: 'SOLD', quantityChange: -2, previousStock: 10, newStock: 8, reason: 'Store Counter Sale POS', reference: 'INV-WN-2026-0410', performedBy: 'Pooja (Manager)' },
+  { id: 'tx_4', date: '25 Sep 2026', time: '11:15 AM', productName: 'Chanderi Zari Embroidered Anarkali Set', sku: 'IW-CHN-90-M', variantInfo: 'Crimson Rust · Size M', barcode: '8901234567202', type: 'STOCK_DEDUCTED', quantityChange: -4, previousStock: 4, newStock: 0, reason: 'Flash Festival Sale Deliveries', reference: '#WN-8760', performedBy: 'System Auto' }
 ];
 
 const INITIAL_INVOICES: Invoice[] = [
@@ -552,7 +613,7 @@ const INITIAL_STAFF: StaffMember[] = [
     email: 'pooja@vogueloom.com',
     role: 'Store Manager',
     status: 'ACTIVE',
-    permissions: ['PRODUCT_READ', 'PRODUCT_CREATE', 'PRODUCT_UPDATE', 'INVENTORY_READ', 'INVENTORY_UPDATE', 'ORDER_READ', 'ORDER_UPDATE', 'BILL_CREATE', 'FINANCE_VIEW'],
+    permissions: ['PRODUCT_READ', 'PRODUCT_CREATE', 'PRODUCT_UPDATE', 'INVENTORY_READ', 'INVENTORY_UPDATE', 'ORDER_READ', 'ORDER_UPDATE', 'BILL_CREATE', 'FINANCE_VIEW', 'SETTINGS_MANAGE'],
     joinedDate: '15 Jan 2025',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200'
   },
@@ -618,84 +679,108 @@ const INITIAL_RETURNS: ReturnRequest[] = [
     id: 'ret_1',
     orderNumber: '#WN-8772',
     customerName: 'Megha Singhi',
-    customerPhone: '+91 98201 99201',
+    customerPhone: '+91 98201 33412',
     productName: 'French Linen Button-Down Resort Shirt',
-    size: 'XL',
+    size: 'M',
     color: 'Sage Olive',
     reason: 'SIZE_FIT',
-    reasonText: 'The chest fit is too loose for regular fit.',
+    reasonText: 'Sleeves are slightly tight across forearm; need size L.',
     status: 'NEW',
     requestDate: 'Today, 11:20 AM',
     amount: 1799
-  },
-  {
-    id: 'ret_2',
-    orderNumber: '#WN-8710',
-    customerName: 'Kunal Kapoor',
-    customerPhone: '+91 98332 19028',
-    productName: 'Handcrafted Heritage Kolhapuri Mules',
-    size: '9',
-    color: 'Warm Ochre',
-    reason: 'DEFECTIVE',
-    reasonText: 'Minor leather scuff mark near toe loop.',
-    status: 'APPROVED',
-    requestDate: 'Yesterday',
-    amount: 2199
   }
 ];
 
 const INITIAL_EXCHANGES: ExchangeRequest[] = [
   {
     id: 'exc_1',
-    orderNumber: '#WN-8750',
-    customerName: 'Neha Joshi',
+    orderNumber: '#WN-8790',
+    customerName: 'Kunal Kapoor',
     originalProduct: 'Pure Mulberry Silk Festive Kurta Set',
-    currentSize: 'L',
-    requestedSize: 'M',
+    currentSize: 'M',
+    requestedSize: 'L',
     stockAvailable: true,
     status: 'PENDING',
-    date: 'Today, 01:15 PM'
+    date: 'Today, 01:10 PM'
   }
 ];
 
 const INITIAL_REFUNDS: RefundItem[] = [
-  { id: 'ref_1', orderNumber: '#WN-8690', customerName: 'Arjun Rampal', amount: 2899, method: 'Original UPI', reason: 'Return inspection passed', status: 'REFUNDED', date: '26 Sep 2026' },
-  { id: 'ref_2', orderNumber: '#WN-8772', customerName: 'Megha Singhi', amount: 1799, method: 'WearNear Store Wallet', reason: 'Size return request pending verification', status: 'REQUESTED', date: 'Today' }
+  {
+    id: 'ref_1',
+    orderNumber: '#WN-8761',
+    customerName: 'Sneha Patel',
+    amount: 2899,
+    method: 'UPI Refund',
+    reason: 'Customer cancelled prior to dispatch',
+    status: 'REFUNDED',
+    date: '26 Sep 2026'
+  }
 ];
 
 const INITIAL_OFFERS: StoreOffer[] = [
-  { id: 'off_1', title: 'Festive Season Kickoff: 20% Off All Kurtas', type: 'CATEGORY_DISCOUNT', discountType: 'PERCENT', discountValue: 20, targetCategory: "Men's Shirts & Kurtas", minOrderAmount: 2500, startDate: '20 Sep 2026', endDate: '15 Oct 2026', status: 'ACTIVE', usageCount: 68 },
-  { id: 'off_2', title: 'Flat ₹300 Off First WearNear Order', type: 'STORE_OFFER', discountType: 'FLAT', discountValue: 300, minOrderAmount: 1999, startDate: '01 Sep 2026', endDate: '31 Oct 2026', status: 'ACTIVE', usageCount: 142 }
+  {
+    id: 'off_1',
+    title: 'Festive Preview 15% OFF',
+    type: 'STORE_OFFER',
+    discountType: 'PERCENT',
+    discountValue: 15,
+    minOrderAmount: 2999,
+    startDate: '20 Sep 2026',
+    endDate: '05 Oct 2026',
+    status: 'ACTIVE',
+    usageCount: 42
+  }
 ];
 
 const INITIAL_REVIEWS: ReviewItem[] = [
-  { id: 'rev_1', customerName: 'Varun Grover', rating: 5, title: 'Outstanding pure silk quality and instant delivery!', comment: 'Received within 35 minutes via WearNear Captain. The finish on the silk kurta placket is pure haute couture. Truly impressive Bandra boutique standard.', date: '26 Sep 2026', productName: 'Pure Mulberry Silk Festive Kurta Set', type: 'PRODUCT', verifiedPurchase: true, storeReply: 'Thank you Varun! We pride ourselves on handpicked pure fabrics.' },
-  { id: 'rev_2', customerName: 'Simran Bajaj', rating: 5, title: 'Best packaging & authentic denim', comment: 'Authentic 14oz shuttle selvedge at this price with 30-min doorstep trial is unmatched in Mumbai.', date: '25 Sep 2026', productName: 'Relaxed Fit 14oz Japanese Selvedge Denim', type: 'PRODUCT', verifiedPurchase: true },
-  { id: 'rev_3', customerName: 'Karan Johar', rating: 4, title: 'Store collection is sublime', comment: 'The staff coordinated sizing via phone promptly. Great in-store experience mirrored on app.', date: '22 Sep 2026', type: 'STORE', verifiedPurchase: true }
+  {
+    id: 'rev_1',
+    customerName: 'Aditya Deshmukh',
+    rating: 5,
+    title: 'Superb Silk Kurta & Rapid Delivery',
+    comment: 'The Mulberry silk fabric is pristine. Arrived packaged impeccably in under 30 minutes!',
+    date: 'Today',
+    productName: 'Pure Mulberry Silk Festive Kurta Set',
+    type: 'PRODUCT',
+    verifiedPurchase: true
+  }
 ];
 
 const INITIAL_SUPPORT_TICKETS: SupportTicket[] = [
   {
     id: 'tkt_1',
-    ticketNumber: 'TKT-WN-8921',
-    category: 'Settlement',
-    subject: 'Verification for TDS Certificate on Q2 Settlement',
+    ticketNumber: 'TKT-WN-8812',
+    category: 'Inventory',
+    subject: 'Requesting SKU barcode batch sync with POS',
     status: 'IN_PROGRESS',
     priority: 'MEDIUM',
-    createdAt: '25 Sep 2026',
-    updatedAt: '26 Sep 2026',
+    createdAt: 'Yesterday, 04:15 PM',
+    updatedAt: 'Today, 10:00 AM',
     messages: [
-      { id: 'm1', sender: 'VENDOR', senderName: 'Vikramaditya (Owner)', text: 'Hi WearNear Finance team, could you please share the Form 16A / TDS reconciliation for August settlements?', timestamp: '25 Sep 2026, 11:30 AM' },
-      { id: 'm2', sender: 'SUPPORT_AGENT', senderName: 'Priyanka (WearNear Merchant Desk)', text: 'Hello Vikramaditya, your quarterly TDS certificate is generated by the 15th of the following month. We have forwarded your request to our compliance cell. You will receive it directly on partner@vogueloom.com.', timestamp: '26 Sep 2026, 10:15 AM' }
+      {
+        id: 'msg_1',
+        sender: 'VENDOR',
+        senderName: 'Vikramaditya (Store Owner)',
+        text: 'Hello team, we are tagging our autumn collection with EAN-13 barcodes. How do we ensure immediate POS recognition?',
+        timestamp: 'Yesterday, 04:15 PM'
+      },
+      {
+        id: 'msg_2',
+        sender: 'SUPPORT_AGENT',
+        senderName: 'Sanjay (WearNear Retail Support)',
+        text: 'Hi Vikramaditya! You can now use the WearNear Barcode Scanner and POS Terminal directly. All variant barcodes map in real-time!',
+        timestamp: 'Today, 10:00 AM'
+      }
     ]
   }
 ];
 
-const INITIAL_KYC_DOCUMENTS: KycDocument[] = [
-  { id: 'kyc_1', type: 'IDENTITY', title: 'Owner Identity Proof', description: 'Aadhaar Card or Passport of the registered store proprietor / authorized director.', requiredFileTypes: 'PDF, JPG, PNG (Max 5MB)', status: 'APPROVED', fileName: 'Vikram_Oberoi_Aadhaar_Verified.pdf', uploadedAt: '12 Jan 2025' },
-  { id: 'kyc_2', type: 'BUSINESS', title: 'GST Registration Certificate', description: 'Form GST REG-06 showing registered trade name and Bandra West principal place of business.', requiredFileTypes: 'PDF (Max 10MB)', status: 'APPROVED', fileName: 'VogueLoom_GST_REG06.pdf', uploadedAt: '12 Jan 2025' },
-  { id: 'kyc_3', type: 'STORE', title: 'Storefront & Interior Proof', description: 'Clear geotagged photo of main shop board and counter area verifying physical retail presence.', requiredFileTypes: 'JPG, PNG (Min 1080p)', status: 'APPROVED', fileName: 'Store_Front_Bandra_LinkingRd.jpg', uploadedAt: '13 Jan 2025' },
-  { id: 'kyc_4', type: 'BANK', title: 'Cancelled Cheque / Bank Statement', description: 'Original cancelled cheque showing Account Holder Name, Bank Account Number & IFSC Code.', requiredFileTypes: 'PDF, JPG (Max 5MB)', status: 'APPROVED', fileName: 'HDFC_Cancelled_Cheque_9824.pdf', uploadedAt: '14 Jan 2025' }
+const INITIAL_KYC: KycDocument[] = [
+  { id: 'kyc_1', type: 'IDENTITY', title: 'Aadhaar Card / Passport', description: 'Government issued photo ID of store proprietor', requiredFileTypes: 'PDF, JPG, PNG', status: 'APPROVED', fileName: 'vikramaditya_aadhaar_front_back.pdf', uploadedAt: '12 Jan 2025' },
+  { id: 'kyc_2', type: 'BUSINESS', title: 'GST Registration Certificate', description: 'Form GST REG-06 showing registered business address', requiredFileTypes: 'PDF', status: 'APPROVED', fileName: 'gst_certificate_27AABCV1294K1Z8.pdf', uploadedAt: '12 Jan 2025' },
+  { id: 'kyc_3', type: 'STORE', title: 'Store Front Photo & Signage', description: 'Clear photograph displaying storefront board and interior shelves', requiredFileTypes: 'JPG, PNG', status: 'APPROVED', fileName: 'vogue_loom_linking_road_facade.jpg', uploadedAt: '14 Jan 2025' },
+  { id: 'kyc_4', type: 'BANK', title: 'Cancelled Cheque / Bank Statement', description: 'Bank proof showing account number, IFSC code, and account holder name', requiredFileTypes: 'PDF, JPG', status: 'APPROVED', fileName: 'hdfc_bank_cancelled_cheque_9824.pdf', uploadedAt: '15 Jan 2025' }
 ];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -722,7 +807,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [inventoryTransactions, setInventoryTransactions] = useState<InventoryTransaction[]>(() => {
-    const saved = localStorage.getItem('wn_inv_tx');
+    const saved = localStorage.getItem('wn_inventory_transactions');
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
   });
 
@@ -732,42 +817,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [settlements] = useState<Settlement[]>(INITIAL_SETTLEMENTS);
-  const [walletTransactions] = useState<WalletTransaction[]>(INITIAL_WALLET_TRANSACTIONS);
-  const [customers] = useState<CustomerSummary[]>(INITIAL_CUSTOMERS);
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>(INITIAL_WALLET_TRANSACTIONS);
+  const [customers, setCustomers] = useState<CustomerSummary[]>(INITIAL_CUSTOMERS);
   const [staff, setStaff] = useState<StaffMember[]>(INITIAL_STAFF);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [returns, setReturns] = useState<ReturnRequest[]>(INITIAL_RETURNS);
   const [exchanges, setExchanges] = useState<ExchangeRequest[]>(INITIAL_EXCHANGES);
-  const [refunds] = useState<RefundItem[]>(INITIAL_REFUNDS);
+  const [refunds, setRefunds] = useState<RefundItem[]>(INITIAL_REFUNDS);
   const [offers, setOffers] = useState<StoreOffer[]>(INITIAL_OFFERS);
   const [reviews] = useState<ReviewItem[]>(INITIAL_REVIEWS);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
-  const [kycDocuments, setKycDocuments] = useState<KycDocument[]>(INITIAL_KYC_DOCUMENTS);
+  const [kycDocuments, setKycDocuments] = useState<KycDocument[]>(INITIAL_KYC);
 
+  // Recent scanned barcodes in current session
+  const [recentScans, setRecentScans] = useState<ScannedBarcodeRecord[]>(() => {
+    const saved = sessionStorage.getItem('wn_recent_scans');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Sync state to storage
   useEffect(() => {
     localStorage.setItem('wn_products', JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('wn_inventory', JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem('wn_inventory_transactions', JSON.stringify(inventoryTransactions));
+  }, [inventoryTransactions]);
+
+  useEffect(() => {
+    localStorage.setItem('wn_invoices', JSON.stringify(invoices));
+  }, [invoices]);
 
   useEffect(() => {
     localStorage.setItem('wn_orders', JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('wn_inventory', JSON.stringify(inventory));
-  }, [inventory]);
+    sessionStorage.setItem('wn_recent_scans', JSON.stringify(recentScans));
+  }, [recentScans]);
+
+  const addRecentScan = (scan: ScannedBarcodeRecord) => {
+    setRecentScans((prev) => [scan, ...prev.filter((s) => s.barcode !== scan.barcode)].slice(0, 20));
+  };
+
+  const clearRecentScans = () => {
+    setRecentScans([]);
+    sessionStorage.removeItem('wn_recent_scans');
+  };
 
   const addProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'salesCount' | 'rating'>): Product => {
+    const now = new Date().toISOString().split('T')[0];
     const newProduct: Product = {
       ...productData,
       id: `prod_${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
+      createdAt: now,
+      updatedAt: now,
       salesCount: 0,
       rating: 5.0
     };
+
     setProducts((prev) => [newProduct, ...prev]);
 
-    // Add to inventory
+    // Also add an inventory item record
     const newInv: InventoryItem = {
       id: `inv_${Date.now()}`,
       productId: newProduct.id,
@@ -777,52 +892,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       brand: newProduct.brand,
       availableStock: newProduct.stock,
       reservedStock: 0,
-      lowStockThreshold: newProduct.lowStockThreshold,
-      status: newProduct.stock > newProduct.lowStockThreshold ? 'HEALTHY' : newProduct.stock > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
+      lowStockThreshold: newProduct.lowStockThreshold || 5,
+      status: newProduct.stock === 0 ? 'OUT_OF_STOCK' : newProduct.stock <= (newProduct.lowStockThreshold || 5) ? 'LOW_STOCK' : 'HEALTHY',
       lastUpdated: 'Just now'
     };
     setInventory((prev) => [newInv, ...prev]);
+
+    // Transaction for initial stock creation
+    if (newProduct.stock > 0) {
+      const tx: InventoryTransaction = {
+        id: `tx_${Date.now()}`,
+        date: 'Today, Just now',
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        productName: newProduct.name,
+        productId: newProduct.id,
+        sku: newProduct.sku,
+        barcode: newProduct.barcode,
+        type: 'STOCK_ADDED',
+        quantityChange: newProduct.stock,
+        previousStock: 0,
+        newStock: newProduct.stock,
+        reason: 'Initial Product Stock Inward',
+        reference: `PROD-${newProduct.id.slice(-6)}`,
+        performedBy: 'Store Staff'
+      };
+      setInventoryTransactions((prev) => [tx, ...prev]);
+    }
 
     return newProduct;
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
     setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : p))
+      prev.map((p) => {
+        if (p.id === id) {
+          const updated = { ...p, ...updates, updatedAt: new Date().toISOString().split('T')[0] };
+          // If total stock changed, also update inventory item
+          if (updates.stock !== undefined) {
+            setInventory((invList) =>
+              invList.map((item) =>
+                item.productId === id
+                  ? {
+                      ...item,
+                      availableStock: updates.stock!,
+                      status: updates.stock === 0 ? 'OUT_OF_STOCK' : updates.stock! <= item.lowStockThreshold ? 'LOW_STOCK' : 'HEALTHY',
+                      lastUpdated: 'Just now'
+                    }
+                  : item
+              )
+            );
+          }
+          return updated;
+        }
+        return p;
+      })
     );
-    if (updates.stock !== undefined) {
-      setInventory((prev) =>
-        prev.map((inv) =>
-          inv.productId === id
-            ? {
-                ...inv,
-                availableStock: updates.stock!,
-                status: updates.stock! > inv.lowStockThreshold ? 'HEALTHY' : updates.stock! > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
-                lastUpdated: 'Just now'
-              }
-            : inv
-        )
-      );
-    }
   };
 
   const deleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
-    setInventory((prev) => prev.filter((inv) => inv.productId !== id));
+    setInventory((prev) => prev.filter((i) => i.productId !== id));
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus, _notes?: string) => {
+  const updateOrderStatus = (orderId: string, status: OrderStatus, notes?: string) => {
     setOrders((prev) =>
       prev.map((ord) => {
         if (ord.id === orderId) {
-          const newTimeline = [...ord.timeline];
-          newTimeline.push({
-            title: `Order marked as ${status.replace(/_/g, ' ')}`,
-            timestamp: 'Just now',
-            completed: true,
-            current: true
-          });
-          return { ...ord, status, timeline: newTimeline };
+          const updatedTimeline = [
+            ...ord.timeline.map((t) => ({ ...t, current: false })),
+            {
+              title: `Status: ${status.replace(/_/g, ' ')}`,
+              description: notes || `Order progressed to ${status.replace(/_/g, ' ')}`,
+              timestamp: 'Just now',
+              completed: true,
+              current: true
+            }
+          ];
+          return { ...ord, status, timeline: updatedTimeline };
         }
         return ord;
       })
@@ -836,9 +982,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             ...ord,
             status: 'ACCEPTED',
-            captain: ord.captain || {
+            captain: {
               id: 'capt_auto',
-              name: 'Suresh More',
+              name: 'Sameer Sheikh',
               phone: '+91 98204 55192',
               vehicleType: 'EV Bike',
               vehicleNumber: 'MH 02 DB 7712',
@@ -874,31 +1020,620 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const updateStock = (productId: string, newStock: number, reason: string) => {
+  const updateStock = (productId: string, newStock: number, reason: string, variantId?: string) => {
     const targetProduct = products.find((p) => p.id === productId);
-    const prevStock = targetProduct ? targetProduct.stock : 0;
+    if (!targetProduct) return;
+
+    const prevStock = targetProduct.stock;
     const diff = newStock - prevStock;
 
-    updateProduct(productId, { stock: newStock });
+    // Update variant if specified
+    if (variantId && targetProduct.variants) {
+      const updatedVariants = targetProduct.variants.map((v) =>
+        v.id === variantId ? { ...v, stock: Math.max(0, newStock), availableStock: Math.max(0, newStock) } : v
+      );
+      const totalStock = updatedVariants.reduce((sum, v) => sum + v.stock, 0);
+      updateProduct(productId, { stock: totalStock, variants: updatedVariants });
+    } else {
+      updateProduct(productId, { stock: Math.max(0, newStock) });
+    }
 
     const newTx: InventoryTransaction = {
       id: `tx_${Date.now()}`,
-      date: 'Just now',
-      productName: targetProduct?.name || 'Product',
-      sku: targetProduct?.sku || 'SKU',
+      date: 'Today, Just now',
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      productName: targetProduct.name,
+      productId: targetProduct.id,
+      variantId: variantId,
+      sku: targetProduct.sku,
+      barcode: targetProduct.barcode,
       type: diff >= 0 ? 'STOCK_ADDED' : 'STOCK_DEDUCTED',
       quantityChange: diff,
       previousStock: prevStock,
       newStock: newStock,
       reason: reason || 'Manual stock update',
+      reference: 'MANUAL-ADJ',
       performedBy: 'Store Staff'
     };
     setInventoryTransactions((prev) => [newTx, ...prev]);
   };
 
+  const performManualStockAdjustment = (params: {
+    productId: string;
+    variantId?: string;
+    change: number;
+    type: InventoryTransactionType;
+    reason: string;
+    operatorName?: string;
+  }): { success: boolean; error?: string } => {
+    const product = products.find((p) => p.id === params.productId);
+    if (!product) return { success: false, error: 'Product not found.' };
+
+    let prevStock = product.stock;
+    let newStock = prevStock + params.change;
+
+    if (newStock < 0) {
+      return { success: false, error: `Stock cannot become negative. Maximum deduction possible is ${prevStock}.` };
+    }
+
+    let variantInfo = '';
+    let variantSku = product.sku;
+    let barcode = product.barcode;
+
+    if (params.variantId && product.variants) {
+      const v = product.variants.find((item) => item.id === params.variantId);
+      if (v) {
+        const vPrev = v.stock;
+        const vNew = Math.max(0, vPrev + params.change);
+        if (vNew < 0) {
+          return { success: false, error: `Variant stock cannot become negative. Available: ${vPrev}.` };
+        }
+        variantInfo = `${v.color} · Size ${v.size}`;
+        variantSku = v.sku;
+        barcode = v.barcode || product.barcode;
+
+        const updatedVariants = product.variants.map((item) =>
+          item.id === params.variantId ? { ...item, stock: vNew, availableStock: vNew } : item
+        );
+        const total = updatedVariants.reduce((s, item) => s + item.stock, 0);
+        updateProduct(product.id, { stock: total, variants: updatedVariants });
+        prevStock = vPrev;
+        newStock = vNew;
+      }
+    } else {
+      updateProduct(product.id, { stock: newStock });
+    }
+
+    const tx: InventoryTransaction = {
+      id: `tx_${Date.now()}`,
+      date: 'Today, Just now',
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      productName: product.name,
+      productId: product.id,
+      variantId: params.variantId,
+      variantInfo: variantInfo || undefined,
+      sku: variantSku,
+      barcode: barcode,
+      type: params.type,
+      quantityChange: params.change,
+      previousStock: prevStock,
+      newStock: newStock,
+      reason: params.reason,
+      reference: `ADJ-${Date.now().toString().slice(-6)}`,
+      performedBy: params.operatorName || 'Store Staff'
+    };
+
+    setInventoryTransactions((prev) => [tx, ...prev]);
+
+    // Check low stock
+    if (newStock <= product.lowStockThreshold && newStock > 0) {
+      setNotifications((prev) => [
+        {
+          id: `notif_${Date.now()}`,
+          type: 'LOW_STOCK',
+          title: `Low Stock Alert: ${product.name}`,
+          message: `Stock level dipped to ${newStock} units. Restock suggested soon.`,
+          timestamp: 'Just now',
+          isRead: false,
+          actionUrl: '/vendor/inventory',
+          referenceId: product.id
+        },
+        ...prev
+      ]);
+    } else if (newStock === 0) {
+      setNotifications((prev) => [
+        {
+          id: `notif_${Date.now()}`,
+          type: 'OUT_OF_STOCK',
+          title: `Out of Stock: ${product.name}`,
+          message: `Product is completely out of stock and marked unavailable for sale.`,
+          timestamp: 'Just now',
+          isRead: false,
+          actionUrl: '/vendor/inventory',
+          referenceId: product.id
+        },
+        ...prev
+      ]);
+    }
+
+    return { success: true };
+  };
+
+  /**
+   * ATOMIC POS SALE COMPLETION:
+   * 1. Validates available stock for every line item (prevents negative stock).
+   * 2. Deducts variant stock and product stock.
+   * 3. Creates auditable SOLD inventory transactions.
+   * 4. Updates inventory status (Healthy / Low / Out of stock).
+   * 5. Creates GST invoice.
+   * 6. Creates completed Order record.
+   * 7. Creates wallet credit record.
+   */
+  const processPOSSale = (bill: POSSaleData): { success: boolean; invoice?: Invoice; order?: Order; error?: string } => {
+    if (!bill.items || bill.items.length === 0) {
+      return { success: false, error: 'Cart is empty. Please scan or add at least one product.' };
+    }
+
+    // Step 1: Strict Stock Validation
+    for (const item of bill.items) {
+      const prod = products.find((p) => p.id === item.productId);
+      if (!prod) {
+        return { success: false, error: `Product "${item.productName}" no longer exists in store catalog.` };
+      }
+
+      if (item.variantId && prod.variants) {
+        const variant = prod.variants.find((v) => v.id === item.variantId);
+        const avail = variant ? (variant.availableStock !== undefined ? variant.availableStock : variant.stock) : 0;
+        if (item.quantity > avail) {
+          return {
+            success: false,
+            error: `Insufficient Stock for ${item.productName} (${item.color} / ${item.size}). Only ${avail} units currently available.`
+          };
+        }
+      } else {
+        if (item.quantity > prod.stock) {
+          return {
+            success: false,
+            error: `Insufficient Stock for ${item.productName}. Only ${prod.stock} units currently available.`
+          };
+        }
+      }
+    }
+
+    // Step 2: Generate Invoice Number and Order ID
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const invoiceNumber = `WN-INV-${randomDigits}`;
+    const orderNumber = `#WN-POS-${randomDigits}`;
+    const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const nowDate = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    // Step 3: Atomic Stock Deduction & Inventory Transactions
+    const newTxList: InventoryTransaction[] = [];
+    const updatedProducts = [...products];
+
+    bill.items.forEach((item, idx) => {
+      const pIdx = updatedProducts.findIndex((p) => p.id === item.productId);
+      if (pIdx !== -1) {
+        const prod = { ...updatedProducts[pIdx] };
+        let prevStock = prod.stock;
+        let newStock = Math.max(0, prevStock - item.quantity);
+
+        if (item.variantId && prod.variants) {
+          const vIdx = prod.variants.findIndex((v) => v.id === item.variantId);
+          if (vIdx !== -1) {
+            const v = { ...prod.variants[vIdx] };
+            const vPrev = v.stock;
+            const vNew = Math.max(0, vPrev - item.quantity);
+            v.stock = vNew;
+            v.availableStock = Math.max(0, (v.availableStock ?? vPrev) - item.quantity);
+
+            const newVariants = [...prod.variants];
+            newVariants[vIdx] = v;
+            prod.variants = newVariants;
+            prod.stock = newVariants.reduce((sum, vr) => sum + vr.stock, 0);
+
+            prevStock = vPrev;
+            newStock = vNew;
+          }
+        } else {
+          prod.stock = newStock;
+        }
+
+        prod.salesCount = (prod.salesCount || 0) + item.quantity;
+        prod.status = prod.stock === 0 ? 'OUT_OF_STOCK' : prod.status;
+        updatedProducts[pIdx] = prod;
+
+        // Record auditable SOLD transaction
+        const tx: InventoryTransaction = {
+          id: `tx_${Date.now()}_${idx}`,
+          date: `Today, ${nowTime}`,
+          time: nowTime,
+          productName: item.productName,
+          productId: item.productId,
+          variantId: item.variantId,
+          variantInfo: `${item.color} · Size ${item.size}`,
+          sku: item.sku,
+          barcode: item.barcode,
+          type: 'SOLD',
+          quantityChange: -item.quantity,
+          previousStock: prevStock,
+          newStock: newStock,
+          reason: 'Retail Sale POS Checkout',
+          reference: invoiceNumber,
+          performedBy: bill.operatorName || 'Store Cashier'
+        };
+        newTxList.push(tx);
+
+        // Low stock / out of stock alerts
+        if (newStock <= prod.lowStockThreshold && newStock > 0) {
+          setNotifications((prev) => [
+            {
+              id: `notif_low_${Date.now()}_${idx}`,
+              type: 'LOW_STOCK',
+              title: `Low Stock: ${item.productName} (${item.size})`,
+              message: `Only ${newStock} units left after retail sale. Reorder recommended.`,
+              timestamp: 'Just now',
+              isRead: false,
+              actionUrl: '/vendor/inventory',
+              referenceId: item.productId
+            },
+            ...prev
+          ]);
+        } else if (newStock === 0) {
+          setNotifications((prev) => [
+            {
+              id: `notif_oos_${Date.now()}_${idx}`,
+              type: 'OUT_OF_STOCK',
+              title: `Out of Stock: ${item.productName}`,
+              message: `Variant (${item.color} / ${item.size}) is now sold out.`,
+              timestamp: 'Just now',
+              isRead: false,
+              actionUrl: '/vendor/inventory',
+              referenceId: item.productId
+            },
+            ...prev
+          ]);
+        }
+      }
+    });
+
+    setProducts(updatedProducts);
+    setInventoryTransactions((prev) => [...newTxList, ...prev]);
+
+    // Update Inventory items table
+    setInventory((prevInv) =>
+      prevInv.map((invItem) => {
+        const matchingProd = updatedProducts.find((p) => p.id === invItem.productId);
+        if (matchingProd) {
+          return {
+            ...invItem,
+            availableStock: matchingProd.stock,
+            status: matchingProd.stock === 0 ? 'OUT_OF_STOCK' : matchingProd.stock <= invItem.lowStockThreshold ? 'LOW_STOCK' : 'HEALTHY',
+            lastUpdated: 'Just now'
+          };
+        }
+        return invItem;
+      })
+    );
+
+    // Step 4: Create Compliant Tax Invoice
+    const newInvoice: Invoice = {
+      id: `inv_${Date.now()}`,
+      invoiceNumber: invoiceNumber,
+      orderId: `ord_pos_${Date.now()}`,
+      orderNumber: orderNumber,
+      date: nowDate,
+      customerName: bill.customerName || 'Walk-in Retail Customer',
+      customerPhone: bill.customerPhone || '+91 98200 00000',
+      customerAddress: bill.customerAddress || 'In-Store Counter Purchase, Bandra West',
+      storeName: 'Vogue Loom Studio',
+      storeGst: '27AABCV1294K1Z8',
+      items: bill.items.map((i) => ({
+        name: i.productName,
+        sku: i.sku,
+        size: i.size,
+        color: i.color,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        discount: i.discountPercent ? Math.round((i.unitPrice * i.discountPercent) / 100) : 0,
+        taxRate: i.taxRate || 5,
+        amount: i.unitPrice * i.quantity
+      })),
+      subtotal: bill.subtotal,
+      discount: bill.discountTotal,
+      taxAmount: bill.taxAmount,
+      deliveryFee: bill.deliveryFee || 0,
+      finalAmount: bill.finalAmount,
+      paymentMethod: bill.paymentMethod === 'UPI' ? 'UPI (Verified)' : bill.paymentMethod === 'CARD' ? 'Credit/Debit Card' : bill.paymentMethod === 'CASH' ? 'Cash at Counter' : 'Digital Payment',
+      paymentStatus: 'PAID'
+    };
+    setInvoices((prev) => [newInvoice, ...prev]);
+
+    // Step 5: Create Completed POS Order
+    const newOrder: Order = {
+      id: newInvoice.orderId,
+      orderNumber: orderNumber,
+      customer: {
+        id: `cust_pos_${Date.now()}`,
+        name: bill.customerName || 'Walk-in Customer',
+        phone: bill.customerPhone || '+91 98200 00000',
+        address: bill.customerAddress || 'In-store retail counter',
+        distanceKm: 0
+      },
+      items: bill.items.map((i, idx) => ({
+        id: `ord_item_${idx}`,
+        productId: i.productId,
+        productName: i.productName,
+        sku: i.sku,
+        size: i.size,
+        color: i.color,
+        quantity: i.quantity,
+        price: i.unitPrice,
+        discount: i.discountPercent ? Math.round((i.unitPrice * i.discountPercent) / 100) : 0,
+        total: i.unitPrice * i.quantity,
+        image: i.image
+      })),
+      itemCount: bill.items.reduce((sum, item) => sum + item.quantity, 0),
+      subtotal: bill.subtotal,
+      discountTotal: bill.discountTotal,
+      deliveryCharge: bill.deliveryFee || 0,
+      taxes: bill.taxAmount,
+      totalAmount: bill.finalAmount,
+      paymentMethod: bill.paymentMethod === 'UPI' ? 'ONLINE_UPI' : bill.paymentMethod === 'CARD' ? 'ONLINE_CARD' : 'CASH_ON_DELIVERY',
+      paymentStatus: 'PAID',
+      status: 'COMPLETED',
+      createdAt: 'Just now',
+      timeline: [
+        { title: 'Barcode Scanned & Added to POS', timestamp: 'Just now', completed: true, current: false },
+        { title: `Payment Verified (${bill.paymentMethod})`, timestamp: 'Just now', completed: true, current: false },
+        { title: `Invoice ${invoiceNumber} Generated`, timestamp: 'Just now', completed: true, current: true }
+      ],
+      notes: bill.notes || 'In-store barcode counter checkout'
+    };
+    setOrders((prev) => [newOrder, ...prev]);
+
+    // Step 6: Credit Wallet Balance
+    setWalletTransactions((prev) => [
+      {
+        id: `wt_pos_${Date.now()}`,
+        date: `Today, ${nowTime}`,
+        type: 'ORDER_PAYOUT',
+        amount: bill.finalAmount,
+        isCredit: true,
+        orderNumber: orderNumber,
+        description: `POS Retail Sale: Invoice ${invoiceNumber}`,
+        balanceAfter: 48250 + bill.finalAmount
+      },
+      ...prev
+    ]);
+
+    // Step 7: Update Customer Summary if phone exists
+    if (bill.customerPhone && bill.customerName) {
+      setCustomers((prevCust) => {
+        const existingIdx = prevCust.findIndex((c) => c.phone === bill.customerPhone);
+        if (existingIdx !== -1) {
+          const updated = [...prevCust];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            ordersCount: updated[existingIdx].ordersCount + 1,
+            totalSpent: updated[existingIdx].totalSpent + bill.finalAmount,
+            lastOrderDate: 'Today'
+          };
+          return updated;
+        } else {
+          return [
+            {
+              id: `cust_${Date.now()}`,
+              name: bill.customerName,
+              phone: bill.customerPhone,
+              email: `${bill.customerName.toLowerCase().replace(/\s+/g, '.')}@client.in`,
+              locality: 'Bandra West, Mumbai',
+              ordersCount: 1,
+              totalSpent: bill.finalAmount,
+              lastOrderDate: 'Today',
+              status: 'ACTIVE'
+            },
+            ...prevCust
+          ];
+        }
+      });
+    }
+
+    return { success: true, invoice: newInvoice, order: newOrder };
+  };
+
+  /**
+   * BARCODE RETURNS PROCESSOR:
+   * Restores inventory, generates RETURNED transaction, updates return request.
+   */
+  const processBarcodeReturn = (returnData: {
+    orderNumber: string;
+    customerName: string;
+    productName: string;
+    sku: string;
+    barcode: string;
+    productId: string;
+    variantId?: string;
+    quantity: number;
+    reason: ReturnRequest['reason'];
+    reasonText: string;
+    amount: number;
+    operatorName?: string;
+  }): boolean => {
+    const product = products.find((p) => p.id === returnData.productId);
+    if (!product) return false;
+
+    let prevStock = product.stock;
+    let newStock = prevStock + returnData.quantity;
+
+    if (returnData.variantId && product.variants) {
+      const updatedVariants = product.variants.map((v) => {
+        if (v.id === returnData.variantId) {
+          const vPrev = v.stock;
+          const vNew = vPrev + returnData.quantity;
+          prevStock = vPrev;
+          newStock = vNew;
+          return { ...v, stock: vNew, availableStock: (v.availableStock || vPrev) + returnData.quantity };
+        }
+        return v;
+      });
+      const totalStock = updatedVariants.reduce((sum, v) => sum + v.stock, 0);
+      updateProduct(product.id, { stock: totalStock, variants: updatedVariants });
+    } else {
+      updateProduct(product.id, { stock: newStock });
+    }
+
+    // Create RETURNED transaction
+    const tx: InventoryTransaction = {
+      id: `tx_${Date.now()}`,
+      date: 'Today, Just now',
+      time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+      productName: product.name,
+      productId: product.id,
+      variantId: returnData.variantId,
+      sku: returnData.sku,
+      barcode: returnData.barcode,
+      type: 'RETURNED',
+      quantityChange: returnData.quantity,
+      previousStock: prevStock,
+      newStock: newStock,
+      reason: `Return accepted: ${returnData.reasonText || returnData.reason}`,
+      reference: returnData.orderNumber,
+      performedBy: returnData.operatorName || 'Store Staff'
+    };
+    setInventoryTransactions((prev) => [tx, ...prev]);
+
+    // Create return record or update existing
+    setReturns((prev) => [
+      {
+        id: `ret_${Date.now()}`,
+        orderNumber: returnData.orderNumber,
+        customerName: returnData.customerName,
+        customerPhone: '+91 98200 00000',
+        productName: returnData.productName,
+        size: 'Standard',
+        color: 'Standard',
+        reason: returnData.reason,
+        reasonText: returnData.reasonText,
+        status: 'COMPLETED',
+        requestDate: 'Today, Just now',
+        amount: returnData.amount
+      },
+      ...prev
+    ]);
+
+    setNotifications((prev) => [
+      {
+        id: `notif_ret_${Date.now()}`,
+        type: 'RETURN_REQUEST',
+        title: `Return Restored: ${returnData.productName}`,
+        message: `${returnData.quantity} unit(s) inspected and restored to shelf stock.`,
+        timestamp: 'Just now',
+        isRead: false,
+        actionUrl: '/vendor/inventory'
+      },
+      ...prev
+    ]);
+
+    return true;
+  };
+
+  /**
+   * BARCODE EXCHANGES PROCESSOR:
+   * Returns old variant (+1) and deducts replacement variant (-1) with linked transactions.
+   */
+  const processBarcodeExchange = (exchangeData: {
+    orderNumber: string;
+    customerName: string;
+    returnedBarcode: string;
+    replacementBarcode: string;
+    operatorName?: string;
+  }): { success: boolean; error?: string } => {
+    // 1. Find returned product/variant
+    let returnedProd: Product | undefined;
+    let returnedVariant: ProductVariant | undefined;
+    let replacementProd: Product | undefined;
+    let replacementVariant: ProductVariant | undefined;
+
+    for (const p of products) {
+      if (p.barcode === exchangeData.returnedBarcode) returnedProd = p;
+      if (p.variants) {
+        for (const v of p.variants) {
+          if (v.barcode === exchangeData.returnedBarcode) {
+            returnedProd = p;
+            returnedVariant = v;
+          }
+        }
+      }
+      if (p.barcode === exchangeData.replacementBarcode) replacementProd = p;
+      if (p.variants) {
+        for (const v of p.variants) {
+          if (v.barcode === exchangeData.replacementBarcode) {
+            replacementProd = p;
+            replacementVariant = v;
+          }
+        }
+      }
+    }
+
+    if (!returnedProd) {
+      return { success: false, error: 'Returned item barcode not found in catalog.' };
+    }
+    if (!replacementProd) {
+      return { success: false, error: 'Replacement item barcode not found in catalog.' };
+    }
+
+    // Validate replacement stock
+    const replStock = replacementVariant ? replacementVariant.stock : replacementProd.stock;
+    if (replStock <= 0) {
+      return {
+        success: false,
+        error: `Replacement item "${replacementProd.name}" (${replacementVariant ? replacementVariant.size : ''}) is out of stock.`
+      };
+    }
+
+    // Restore old item (+1)
+    performManualStockAdjustment({
+      productId: returnedProd.id,
+      variantId: returnedVariant?.id,
+      change: 1,
+      type: 'RETURNED',
+      reason: `Exchange return from ${exchangeData.orderNumber}`,
+      operatorName: exchangeData.operatorName
+    });
+
+    // Deduct replacement item (-1)
+    performManualStockAdjustment({
+      productId: replacementProd.id,
+      variantId: replacementVariant?.id,
+      change: -1,
+      type: 'SOLD',
+      reason: `Exchange replacement issued for ${exchangeData.orderNumber}`,
+      operatorName: exchangeData.operatorName
+    });
+
+    // Add exchange log
+    setExchanges((prev) => [
+      {
+        id: `exc_${Date.now()}`,
+        orderNumber: exchangeData.orderNumber,
+        customerName: exchangeData.customerName,
+        originalProduct: `${returnedProd?.name} (${returnedVariant?.size || 'Standard'})`,
+        currentSize: returnedVariant?.size || 'Current',
+        requestedSize: replacementVariant?.size || 'Replacement',
+        stockAvailable: true,
+        status: 'COMPLETED',
+        date: 'Today, Just now'
+      },
+      ...prev
+    ]);
+
+    return { success: true };
+  };
+
   const createInvoice = (orderId: string): Invoice => {
     const order = orders.find((o) => o.id === orderId);
-    const invoiceNum = `INV-WN-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const invoiceNum = `WN-INV-${Math.floor(1000 + Math.random() * 9000)}`;
     const newInvoice: Invoice = {
       id: `inv_${Date.now()}`,
       invoiceNumber: invoiceNum,
@@ -1067,6 +1802,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reviews,
         supportTickets,
         kycDocuments,
+        recentScans,
         addProduct,
         updateProduct,
         deleteProduct,
@@ -1085,7 +1821,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleOfferStatus,
         addSupportTicket,
         replyToSupportTicket,
-        uploadKycDoc
+        uploadKycDoc,
+        processPOSSale,
+        processBarcodeReturn,
+        processBarcodeExchange,
+        performManualStockAdjustment,
+        addRecentScan,
+        clearRecentScans
       }}
     >
       {children}

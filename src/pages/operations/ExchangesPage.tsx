@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Barcode, RefreshCw } from 'lucide-react';
 import { PageHeader } from '../../components/common/PageHeader';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AnimatedPage } from '../../components/common/AnimatedPage';
+import { ExchangeScannerModal } from '../../components/operations/ExchangeScannerModal';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
-import { staggerContainer, staggerItem } from '../../utils/animations';
+import { staggerContainer, staggerItem, buttonTapVariants } from '../../utils/animations';
 
 export const ExchangesPage: React.FC = () => {
   const { exchanges, updateExchangeStatus } = useData();
   const { success } = useToast();
+  const [isExchangeScannerOpen, setIsExchangeScannerOpen] = useState(false);
 
   const handleApprove = (id: string) => {
     updateExchangeStatus(id, 'APPROVED');
@@ -24,6 +26,17 @@ export const ExchangesPage: React.FC = () => {
           title="Apparel Size & Fit Exchanges"
           subtitle="Process doorstep trial size swaps with automated real-time shelf inventory verification."
           breadcrumbs={[{ label: 'Operations' }, { label: 'Exchanges' }]}
+          actions={
+            <motion.button
+              variants={buttonTapVariants}
+              whileTap="tap"
+              onClick={() => setIsExchangeScannerOpen(true)}
+              className="wn-btn-primary text-xs sm:text-sm flex items-center gap-1.5 shadow-md shadow-[#172B82]/20"
+            >
+              <Barcode className="w-4 h-4" />
+              <span>Scan Barcode to Exchange</span>
+            </motion.button>
+          }
         />
 
         <motion.div
@@ -37,7 +50,7 @@ export const ExchangesPage: React.FC = () => {
               key={exc.id}
               variants={staggerItem}
               whileTap={{ scale: 0.99 }}
-              className="bg-white rounded-2xl border border-[#DDD7CA] p-4 sm:p-5 shadow-xs space-y-3.5 flex flex-col justify-between select-none"
+              className="bg-white rounded-3xl border border-[#DDD7CA] p-4 sm:p-5 shadow-xs space-y-3.5 flex flex-col justify-between select-none"
             >
               <div>
                 <div className="flex items-center justify-between pb-2.5 border-b border-[#DDD7CA]">
@@ -56,20 +69,20 @@ export const ExchangesPage: React.FC = () => {
                   </p>
 
                   {/* Size Swap Card */}
-                  <div className="p-3 rounded-xl bg-[#FFFCF5] border border-[#DDD7CA] flex items-center justify-around text-center">
+                  <div className="p-3 rounded-2xl bg-[#FFFCF5] border border-[#DDD7CA] flex items-center justify-around text-center">
                     <div>
-                      <span className="text-[10px] text-[#687085] uppercase block">Current Size</span>
+                      <span className="text-[10px] text-[#687085] uppercase block font-medium">Current Size</span>
                       <span className="text-sm sm:text-base font-bold text-[#172033]">{exc.currentSize}</span>
                     </div>
                     <ArrowRight className="w-4 h-4 text-[#172B82]" />
                     <div>
-                      <span className="text-[10px] text-[#687085] uppercase block">Requested Size</span>
+                      <span className="text-[10px] text-[#687085] uppercase block font-medium">Requested Size</span>
                       <span className="text-sm sm:text-base font-extrabold text-[#172B82]">{exc.requestedSize}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] text-[#687085]">Inventory Availability:</span>
+                    <span className="text-[11px] text-[#687085]">Shelf Inventory Status:</span>
                     <span
                       className={`text-xs font-bold ${
                         exc.stockAvailable ? 'text-[#16A34A]' : 'text-[#DC2626]'
@@ -98,6 +111,14 @@ export const ExchangesPage: React.FC = () => {
           ))}
         </motion.div>
       </div>
+
+      {/* Exchange Scanner Modal */}
+      {isExchangeScannerOpen && (
+        <ExchangeScannerModal
+          isOpen={true}
+          onClose={() => setIsExchangeScannerOpen(false)}
+        />
+      )}
     </AnimatedPage>
   );
 };

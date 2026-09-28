@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LogOut,
   Store,
+  Barcode
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -62,6 +63,8 @@ export const VendorHeader: React.FC<VendorHeaderProps> = ({ onOpenSearch }) => {
   }, []);
 
   const getPageTitle = (path: string): string => {
+    if (path.includes('/barcode-scanner')) return 'Barcode Scanner';
+    if (path.includes('/barcode-labels')) return 'Barcode Labels';
     if (path.includes('/products/add')) return 'Add Product';
     if (path.includes('/products/') && path.includes('/edit')) return 'Edit Product';
     if (path.includes('/products/') && path.includes('/variants')) return 'Product Variants';
@@ -169,6 +172,23 @@ export const VendorHeader: React.FC<VendorHeaderProps> = ({ onOpenSearch }) => {
 
       {/* Right Header Controls */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
+        {/* Quick Scan & Bill Button */}
+        <Link
+          to="/vendor/billing"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#172B82] hover:bg-[#243FBA] text-white text-xs font-bold transition-all shadow-xs shrink-0"
+        >
+          <Barcode className="w-3.5 h-3.5" />
+          <span>Scan & Bill</span>
+        </Link>
+
+        <Link
+          to="/vendor/billing"
+          className="sm:hidden w-9 h-9 rounded-xl border border-[#DDD7CA] bg-[#172B82]/10 text-[#172B82] flex items-center justify-center shrink-0"
+          title="Scan & Bill POS"
+        >
+          <Barcode className="w-4 h-4" />
+        </Link>
+
         {/* Mobile Search Button */}
         <motion.button
           whileTap={{ scale: 0.92 }}
