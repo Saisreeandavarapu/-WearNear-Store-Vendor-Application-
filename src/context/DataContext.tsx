@@ -23,7 +23,15 @@ import {
   SupportTicket,
   KycDocument,
   POSSaleData,
-  ScannedBarcodeRecord
+  ScannedBarcodeRecord,
+  CatalogueExecutive,
+  ExecutivePermissions,
+  ExecutiveRequest,
+  ExecutiveActivityItem,
+  ExecutiveLoginHistory,
+  ExecutiveProductActivity,
+  BusinessProfile,
+  PermissionPreset
 } from '../types';
 
 interface DataContextType {
@@ -51,6 +59,15 @@ interface DataContextType {
   kycDocuments: KycDocument[];
   recentScans: ScannedBarcodeRecord[];
 
+  // Catalogue Executives & Business
+  catalogueExecutives: CatalogueExecutive[];
+  executiveRequests: ExecutiveRequest[];
+  executiveActivities: ExecutiveActivityItem[];
+  executiveLoginHistories: ExecutiveLoginHistory[];
+  executiveProductActivities: ExecutiveProductActivity[];
+  businessProfile: BusinessProfile;
+  maxActiveExecutivesLimit: number;
+
   // Action methods
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'salesCount' | 'rating'>) => Product;
   updateProduct: (id: string, updates: Partial<Product>) => void;
@@ -71,6 +88,23 @@ interface DataContextType {
   addSupportTicket: (ticket: Omit<SupportTicket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt' | 'messages'> & { initialMessage: string }) => void;
   replyToSupportTicket: (ticketId: string, message: string) => void;
   uploadKycDoc: (id: string, fileName: string) => void;
+
+  // Catalogue Executive Actions
+  addCatalogueExecutive: (exec: { name: string; phone: string; email: string; preset: PermissionPreset; role?: CatalogueExecutive['role'] }) => CatalogueExecutive;
+  updateCatalogueExecutive: (id: string, updates: Partial<CatalogueExecutive>) => void;
+  updateExecutivePermissions: (id: string, permissions: ExecutivePermissions, preset?: PermissionPreset) => void;
+  toggleExecutiveStatus: (id: string) => void;
+  requestAdditionalExecutives: (requestedAdditionalCount: number, reason: string) => ExecutiveRequest;
+  updateBusinessProfile: (updates: Partial<BusinessProfile>) => void;
+
+  // Product Approval & Publishing Workflow Actions
+  submitProductForApproval: (productId: string, submitterName?: string) => void;
+  approveProductByStore: (productId: string, approverName?: string) => { success: boolean; isLive: boolean; error?: string };
+  requestProductChangesByStore: (productId: string, requestedChanges: string[], comment: string, reviewerName?: string) => void;
+  rejectProductByStore: (productId: string, reason: string, reviewerName?: string) => void;
+  pauseProductByStore: (productId: string, reason?: string) => void;
+  unpauseProductByStore: (productId: string) => void;
+  resubmitProductForApproval: (productId: string) => void;
 
   // Barcode & POS Actions
   processPOSSale: (bill: POSSaleData) => { success: boolean; invoice?: Invoice; order?: Order; error?: string };
@@ -309,6 +343,94 @@ const INITIAL_PRODUCTS: Product[] = [
     updatedAt: '2026-09-27',
     salesCount: 92,
     rating: 4.88
+  },
+  {
+    id: 'prod_106',
+    name: 'Nike Oversized Heavyweight Cotton T-Shirt',
+    sku: 'NK-OVS-TS-BLK',
+    barcode: '8901234567990',
+    barcodeFormat: 'EAN-13',
+    category: "Men's Shirts & Kurtas",
+    categoryId: 'cat_1',
+    brand: 'Urban Stitch Co',
+    brandId: 'br_3',
+    description: 'Heavyweight 240 GSM combed cotton oversized drop-shoulder graphic t-shirt. Breathable finish.',
+    mrp: 2199,
+    sellingPrice: 1599,
+    discountPercent: 27,
+    stock: 53,
+    lowStockThreshold: 10,
+    status: 'UNDER_REVIEW',
+    images: [
+      'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&q=80&w=600'
+    ],
+    sizes: ['S', 'M', 'L', 'XL'],
+    colors: [
+      { name: 'Midnight Black', hex: '#111827' },
+      { name: 'Pearl Ivory', hex: '#F9FAFB' }
+    ],
+    variants: [
+      { id: 'v20', sku: 'NK-OVS-TS-BLK-S', barcode: '8901234567990', barcodeFormat: 'EAN-13', size: 'S', color: 'Midnight Black', colorHex: '#111827', price: 1599, stock: 10, availableStock: 10, reservedStock: 0 },
+      { id: 'v21', sku: 'NK-OVS-TS-BLK-M', barcode: '8901234567991', barcodeFormat: 'EAN-13', size: 'M', color: 'Midnight Black', colorHex: '#111827', price: 1599, stock: 15, availableStock: 15, reservedStock: 0 },
+      { id: 'v22', sku: 'NK-OVS-TS-BLK-L', barcode: '8901234567992', barcodeFormat: 'EAN-13', size: 'L', color: 'Midnight Black', colorHex: '#111827', price: 1599, stock: 20, availableStock: 20, reservedStock: 0 },
+      { id: 'v23', sku: 'NK-OVS-TS-BLK-XL', barcode: '8901234567993', barcodeFormat: 'EAN-13', size: 'XL', color: 'Midnight Black', colorHex: '#111827', price: 1599, stock: 8, availableStock: 8, reservedStock: 0 }
+    ],
+    createdAt: 'Today, 02:15 PM',
+    updatedAt: 'Today, 03:20 PM',
+    salesCount: 0,
+    rating: 0,
+    submittedBy: {
+      id: 'ce_2',
+      name: 'Neha Gupta',
+      role: 'Catalogue Executive',
+      timestamp: 'Today, 03:20 PM'
+    },
+    auditTrail: [
+      { id: 'aud_1', action: 'PRODUCT_CREATED', performedBy: 'Neha Gupta', role: 'Catalogue Executive', timestamp: 'Today, 02:15 PM' },
+      { id: 'aud_2', action: 'VARIANT_CREATED', performedBy: 'Neha Gupta', role: 'Catalogue Executive', timestamp: 'Today, 02:25 PM', notes: '4 SKU variants created' },
+      { id: 'aud_3', action: 'BARCODE_ASSIGNED', performedBy: 'Neha Gupta', role: 'Catalogue Executive', timestamp: 'Today, 02:40 PM', notes: 'Mapped EAN-13 barcodes' },
+      { id: 'aud_4', action: 'STOCK_ADDED', performedBy: 'Neha Gupta', role: 'Catalogue Executive', timestamp: 'Today, 03:00 PM', notes: '+53 units in-warded' },
+      { id: 'aud_5', action: 'SUBMITTED_FOR_APPROVAL', performedBy: 'Neha Gupta', role: 'Catalogue Executive', timestamp: 'Today, 03:20 PM', notes: 'Awaiting Store Owner review' }
+    ]
+  },
+  {
+    id: 'prod_107',
+    name: 'Handwoven Banarasi Brocade Zari Dupatta',
+    sku: 'IW-BND-12',
+    barcode: '8901234568010',
+    barcodeFormat: 'EAN-13',
+    category: "Women's Ethnic & Sarees",
+    categoryId: 'cat_2',
+    brand: 'IndiWeave Crafts',
+    brandId: 'br_2',
+    description: 'Pure Katan silk dupatta featuring traditional kadwa weave gold Zari motifs.',
+    mrp: 3499,
+    sellingPrice: 2499,
+    discountPercent: 28,
+    stock: 12,
+    lowStockThreshold: 4,
+    status: 'CHANGES_REQUESTED',
+    images: [
+      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&q=80&w=600'
+    ],
+    sizes: ['Free Size'],
+    colors: [{ name: 'Crimson Rust', hex: '#991B1B' }],
+    variants: [
+      { id: 'v24', sku: 'IW-BND-12-FS', barcode: '8901234568010', barcodeFormat: 'EAN-13', size: 'Free Size', color: 'Crimson Rust', colorHex: '#991B1B', price: 2499, stock: 12, availableStock: 12, reservedStock: 0 }
+    ],
+    createdAt: 'Yesterday, 10:00 AM',
+    updatedAt: 'Today, 11:00 AM',
+    salesCount: 0,
+    rating: 0,
+    submittedBy: { id: 'ce_3', name: 'Siddharth Rao', role: 'Catalogue Executive', timestamp: 'Yesterday, 11:30 AM' },
+    reviewedBy: { id: 'usr_owner_01', name: 'Vikramaditya (Store Owner)', role: 'STORE_OWNER', timestamp: 'Today, 11:00 AM' },
+    reviewComment: 'Please replace main product image with high-definition lighting photo showing border details.',
+    requestedChanges: ['Product Image', 'Product Description'],
+    auditTrail: [
+      { id: 'aud_10', action: 'PRODUCT_CREATED', performedBy: 'Siddharth Rao', role: 'Catalogue Executive', timestamp: 'Yesterday, 10:00 AM' },
+      { id: 'aud_11', action: 'SUBMITTED_FOR_APPROVAL', performedBy: 'Siddharth Rao', role: 'Catalogue Executive', timestamp: 'Yesterday, 11:30 AM' },
+      { id: 'aud_12', action: 'CHANGES_REQUESTED', performedBy: 'Vikramaditya', role: 'STORE_OWNER', timestamp: 'Today, 11:00 AM', notes: 'Replace image & update description' }
+    ]
   }
 ];
 
@@ -783,6 +905,131 @@ const INITIAL_KYC: KycDocument[] = [
   { id: 'kyc_4', type: 'BANK', title: 'Cancelled Cheque / Bank Statement', description: 'Bank proof showing account number, IFSC code, and account holder name', requiredFileTypes: 'PDF, JPG', status: 'APPROVED', fileName: 'hdfc_bank_cancelled_cheque_9824.pdf', uploadedAt: '15 Jan 2025' }
 ];
 
+const STANDARD_PERMISSIONS: ExecutivePermissions = {
+  product: { view: true, create: true, update: true, delete: false, variants: true, images: true },
+  bulk: { bulkImport: true, bulkUpdate: true, bulkExport: true, bulkPriceUpdate: false, bulkStockUpdate: true, bulkBarcodeAssignment: true },
+  inventory: { view: true, add: true, update: true, adjust: false, transactions: true, bulkInventory: false },
+  orders: { view: true, process: true, picking: true, productVerification: true, quantityVerification: true, packing: true, evidence: true, package: true, handover: true },
+  barcode: { view: true, generate: true, assign: true, scan: true, print: true, bulkBarcode: true }
+};
+
+const SENIOR_PERMISSIONS: ExecutivePermissions = {
+  product: { view: true, create: true, update: true, delete: true, variants: true, images: true },
+  bulk: { bulkImport: true, bulkUpdate: true, bulkExport: true, bulkPriceUpdate: true, bulkStockUpdate: true, bulkBarcodeAssignment: true },
+  inventory: { view: true, add: true, update: true, adjust: true, transactions: true, bulkInventory: true },
+  orders: { view: true, process: true, picking: true, productVerification: true, quantityVerification: true, packing: true, evidence: true, package: true, handover: true },
+  barcode: { view: true, generate: true, assign: true, scan: true, print: true, bulkBarcode: true }
+};
+
+const INITIAL_CATALOGUE_EXECUTIVES: CatalogueExecutive[] = [
+  {
+    id: 'ce_1',
+    employeeId: 'CE-2026-001',
+    name: 'Arjun Verma',
+    phone: '+91 98201 44512',
+    email: 'arjun.v@vogueloom.com',
+    storeId: 'store_01',
+    role: 'Fulfilment Lead',
+    status: 'ACTIVE',
+    joinedDate: '10 Jan 2026',
+    lastLogin: 'Today, 09:15 AM',
+    currentSession: { device: 'MacBook Pro 16', ip: '103.21.124.8', loginTime: '09:15 AM' },
+    preset: 'SENIOR',
+    permissions: SENIOR_PERMISSIONS,
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
+  },
+  {
+    id: 'ce_2',
+    employeeId: 'CE-2026-002',
+    name: 'Neha Gupta',
+    phone: '+91 98192 88301',
+    email: 'neha.g@vogueloom.com',
+    storeId: 'store_01',
+    role: 'Catalogue Executive',
+    status: 'ACTIVE',
+    joinedDate: '18 Feb 2026',
+    lastLogin: 'Today, 11:30 AM',
+    currentSession: { device: 'iPad Pro 11', ip: '103.21.124.9', loginTime: '11:30 AM' },
+    preset: 'STANDARD',
+    permissions: STANDARD_PERMISSIONS,
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200'
+  },
+  {
+    id: 'ce_3',
+    employeeId: 'CE-2026-003',
+    name: 'Siddharth Rao',
+    phone: '+91 98331 55204',
+    email: 'siddharth.r@vogueloom.com',
+    storeId: 'store_01',
+    role: 'Catalogue Executive',
+    status: 'ACTIVE',
+    joinedDate: '05 Mar 2026',
+    lastLogin: 'Yesterday, 06:45 PM',
+    preset: 'STANDARD',
+    permissions: STANDARD_PERMISSIONS,
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200'
+  }
+];
+
+const INITIAL_EXECUTIVE_REQUESTS: ExecutiveRequest[] = [
+  {
+    id: 'req_1',
+    currentCount: 3,
+    requestedAdditionalCount: 2,
+    reason: 'Expanding store catalogue with Autumn/Winter festive line. Need 2 additional executives for rapid inventory tagging.',
+    requestedBy: 'Vikramaditya (Store Owner)',
+    date: 'Today, 10:00 AM',
+    status: 'PENDING'
+  }
+];
+
+const INITIAL_EXECUTIVE_ACTIVITIES: ExecutiveActivityItem[] = [
+  { id: 'act_1', executiveId: 'ce_1', executiveName: 'Arjun Verma', action: 'ORDER_PICKING', details: 'Picked 1 unit Pure Mulberry Silk Festive Kurta Set for Order #WN-8821', timestamp: '15 mins ago', referenceId: 'ord_9901' },
+  { id: 'act_2', executiveId: 'ce_2', executiveName: 'Neha Gupta', action: 'BARCODE_ASSIGNED', details: 'Generated & assigned EAN-13 barcode 8901234567029 to VL-MSK-01-BLU-M', timestamp: '1 hour ago', referenceId: 'prod_101' },
+  { id: 'act_3', executiveId: 'ce_2', executiveName: 'Neha Gupta', action: 'INVENTORY_UPDATED', details: 'Updated stock for French Linen Resort Shirt from 15 to 35', timestamp: '2 hours ago', referenceId: 'prod_103' },
+  { id: 'act_4', executiveId: 'ce_3', executiveName: 'Siddharth Rao', action: 'PACKING', details: 'Completed verification & evidence photo for Order #WN-8802', timestamp: '3 hours ago', referenceId: 'ord_9904' },
+  { id: 'act_5', executiveId: 'ce_1', executiveName: 'Arjun Verma', action: 'LOGIN', details: 'Authenticated session from MacBook Pro (IP: 103.21.124.8)', timestamp: 'Today, 09:15 AM' }
+];
+
+const INITIAL_EXECUTIVE_LOGIN_HISTORIES: ExecutiveLoginHistory[] = [
+  { id: 'lh_1', executiveId: 'ce_1', date: 'Today', time: '09:15 AM', device: 'MacBook Pro 16', browser: 'Chrome 128', ip: '103.21.124.8', status: 'SUCCESS', sessionDuration: '5h 30m active' },
+  { id: 'lh_2', executiveId: 'ce_2', date: 'Today', time: '11:30 AM', device: 'iPad Pro 11', browser: 'Safari Mobile', ip: '103.21.124.9', status: 'SUCCESS', sessionDuration: '3h 15m active' },
+  { id: 'lh_3', executiveId: 'ce_3', date: 'Yesterday', time: '06:45 PM', device: 'Windows PC', browser: 'Edge 126', ip: '103.21.124.12', status: 'SUCCESS', sessionDuration: '4h 10m' }
+];
+
+const INITIAL_EXECUTIVE_PRODUCT_ACTIVITIES: ExecutiveProductActivity[] = [
+  { id: 'pa_1', executiveId: 'ce_1', date: 'Today', productsViewed: 42, productsCreated: 3, productsUpdated: 8, variantsUpdated: 14, barcodesGenerated: 18, bulkOperations: 2 },
+  { id: 'pa_2', executiveId: 'ce_2', date: 'Today', productsViewed: 35, productsCreated: 2, productsUpdated: 12, variantsUpdated: 20, barcodesGenerated: 25, bulkOperations: 1 },
+  { id: 'pa_3', executiveId: 'ce_3', date: 'Yesterday', productsViewed: 28, productsCreated: 0, productsUpdated: 5, variantsUpdated: 9, barcodesGenerated: 12, bulkOperations: 0 }
+];
+
+const INITIAL_BUSINESS_PROFILE: BusinessProfile = {
+  id: 'biz_01',
+  legalName: 'Vogue Loom Retail Private Limited',
+  tradeName: 'Vogue Loom Studio',
+  businessType: 'Pvt Ltd',
+  gstin: '27AABCV1294K1Z8',
+  panNumber: 'AABCV1294K',
+  registeredAddress: {
+    street: '14-B Linking Road, Bandra West',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    pincode: '400050'
+  },
+  bankDetails: {
+    accountNumber: '50200049281924',
+    ifscCode: 'HDFC0000084',
+    bankName: 'HDFC Bank',
+    branch: 'Bandra West Main Branch',
+    accountHolder: 'Vogue Loom Retail Pvt Ltd'
+  },
+  kycStatus: 'APPROVED',
+  taxRegistrationDate: '12 Jan 2024',
+  authorizedSignatory: 'Vikramaditya Sharma',
+  contactEmail: 'vikram@vogueloom.com',
+  contactPhone: '+91 98200 12345'
+};
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -790,6 +1037,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem('wn_products');
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
+
 
   const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [brands] = useState<Brand[]>(INITIAL_BRANDS);
@@ -829,11 +1077,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(INITIAL_SUPPORT_TICKETS);
   const [kycDocuments, setKycDocuments] = useState<KycDocument[]>(INITIAL_KYC);
 
+  // Catalogue Executives state & Business Profile
+  const [catalogueExecutives, setCatalogueExecutives] = useState<CatalogueExecutive[]>(() => {
+    const saved = localStorage.getItem('wn_catalogue_executives');
+    return saved ? JSON.parse(saved) : INITIAL_CATALOGUE_EXECUTIVES;
+  });
+
+  const [executiveRequests, setExecutiveRequests] = useState<ExecutiveRequest[]>(() => {
+    const saved = localStorage.getItem('wn_executive_requests');
+    return saved ? JSON.parse(saved) : INITIAL_EXECUTIVE_REQUESTS;
+  });
+
+  const [executiveActivities, setExecutiveActivities] = useState<ExecutiveActivityItem[]>(() => {
+    const saved = localStorage.getItem('wn_executive_activities');
+    return saved ? JSON.parse(saved) : INITIAL_EXECUTIVE_ACTIVITIES;
+  });
+
+  const [executiveLoginHistories] = useState<ExecutiveLoginHistory[]>(INITIAL_EXECUTIVE_LOGIN_HISTORIES);
+  const [executiveProductActivities] = useState<ExecutiveProductActivity[]>(INITIAL_EXECUTIVE_PRODUCT_ACTIVITIES);
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile>(INITIAL_BUSINESS_PROFILE);
+  const [maxActiveExecutivesLimit] = useState<number>(3);
+
   // Recent scanned barcodes in current session
   const [recentScans, setRecentScans] = useState<ScannedBarcodeRecord[]>(() => {
     const saved = sessionStorage.getItem('wn_recent_scans');
     return saved ? JSON.parse(saved) : [];
   });
+
+  useEffect(() => {
+    localStorage.setItem('wn_catalogue_executives', JSON.stringify(catalogueExecutives));
+  }, [catalogueExecutives]);
+
+  useEffect(() => {
+    localStorage.setItem('wn_executive_requests', JSON.stringify(executiveRequests));
+  }, [executiveRequests]);
+
+  useEffect(() => {
+    localStorage.setItem('wn_executive_activities', JSON.stringify(executiveActivities));
+  }, [executiveActivities]);
 
   // Sync state to storage
   useEffect(() => {
@@ -1777,6 +2058,356 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const addCatalogueExecutive = (execData: {
+    name: string;
+    phone: string;
+    email: string;
+    preset: PermissionPreset;
+    role?: CatalogueExecutive['role'];
+  }): CatalogueExecutive => {
+    const activeCount = catalogueExecutives.filter((e) => e.status === 'ACTIVE').length;
+    if (activeCount >= maxActiveExecutivesLimit) {
+      throw new Error('Catalogue Executive Limit Reached. Request additional limit from Super Admin.');
+    }
+
+    const nextNumber = catalogueExecutives.length + 1;
+    const employeeId = `CE-2026-00${nextNumber}`;
+    const newExec: CatalogueExecutive = {
+      id: `ce_${Date.now()}`,
+      employeeId,
+      name: execData.name,
+      phone: execData.phone,
+      email: execData.email,
+      storeId: 'store_01',
+      role: execData.role || 'Catalogue Executive',
+      status: 'ACTIVE',
+      joinedDate: 'Today',
+      lastLogin: 'Never logged in',
+      preset: execData.preset,
+      permissions: execData.preset === 'SENIOR' ? SENIOR_PERMISSIONS : STANDARD_PERMISSIONS
+    };
+
+    setCatalogueExecutives((prev) => [newExec, ...prev]);
+
+    // Record activity
+    setExecutiveActivities((prev) => [
+      {
+        id: `act_${Date.now()}`,
+        executiveId: newExec.id,
+        executiveName: newExec.name,
+        action: 'PRODUCT_CREATE',
+        details: `Created new Catalogue Executive profile (${employeeId})`,
+        timestamp: 'Just now'
+      },
+      ...prev
+    ]);
+
+    return newExec;
+  };
+
+  const updateCatalogueExecutive = (id: string, updates: Partial<CatalogueExecutive>) => {
+    setCatalogueExecutives((prev) =>
+      prev.map((exec) => (exec.id === id ? { ...exec, ...updates } : exec))
+    );
+  };
+
+  const updateExecutivePermissions = (
+    id: string,
+    permissions: ExecutivePermissions,
+    preset: PermissionPreset = 'CUSTOM'
+  ) => {
+    setCatalogueExecutives((prev) =>
+      prev.map((exec) =>
+        exec.id === id
+          ? {
+              ...exec,
+              permissions,
+              preset
+            }
+          : exec
+      )
+    );
+  };
+
+  const toggleExecutiveStatus = (id: string) => {
+    setCatalogueExecutives((prev) =>
+      prev.map((exec) => {
+        if (exec.id === id) {
+          const newStatus = exec.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+          return { ...exec, status: newStatus };
+        }
+        return exec;
+      })
+    );
+  };
+
+  const requestAdditionalExecutives = (
+    requestedAdditionalCount: number,
+    reason: string
+  ): ExecutiveRequest => {
+    const activeCount = catalogueExecutives.filter((e) => e.status === 'ACTIVE').length;
+    const newRequest: ExecutiveRequest = {
+      id: `req_${Date.now()}`,
+      currentCount: activeCount,
+      requestedAdditionalCount,
+      reason,
+      requestedBy: 'Vikramaditya (Store Owner)',
+      date: 'Today',
+      status: 'PENDING'
+    };
+
+    setExecutiveRequests((prev) => [newRequest, ...prev]);
+    return newRequest;
+  };
+
+  const updateBusinessProfile = (updates: Partial<BusinessProfile>) => {
+    setBusinessProfile((prev) => ({ ...prev, ...updates }));
+  };
+
+  // Product Approval & Publishing Workflow Action Handlers
+  const submitProductForApproval = (productId: string, submitterName: string = 'Neha Gupta (Catalogue Executive)') => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'SUBMITTED_FOR_APPROVAL',
+            performedBy: submitterName,
+            role: 'Catalogue Executive',
+            timestamp: 'Just now',
+            notes: 'Submitted for Store Owner review'
+          };
+          return {
+            ...p,
+            status: 'UNDER_REVIEW',
+            updatedAt: 'Just now',
+            submittedBy: {
+              id: 'ce_2',
+              name: submitterName,
+              role: 'Catalogue Executive',
+              timestamp: 'Just now'
+            },
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const approveProductByStore = (
+    productId: string,
+    approverName: string = 'Vikramaditya (Store Owner)'
+  ): { success: boolean; isLive: boolean; error?: string } => {
+    const target = products.find((p) => p.id === productId);
+    if (!target) return { success: false, isLive: false, error: 'Product not found' };
+
+    // Validation checks for LIVE status
+    const missing: string[] = [];
+    if (!target.name) missing.push('Product name');
+    if (!target.images || target.images.length === 0) missing.push('Product image');
+    if (!target.category) missing.push('Category assignment');
+    if (!target.sellingPrice || target.sellingPrice <= 0) missing.push('Selling price');
+    if (!target.variants || target.variants.length === 0) missing.push('Product variants');
+    if (!target.sku) missing.push('SKU code');
+
+    const canBeLive = missing.length === 0;
+    const finalStatus: ProductLifecycleStatus = canBeLive ? 'LIVE' : 'APPROVED';
+
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const auditApprove: ProductAuditEvent = {
+            id: `aud_${Date.now()}_1`,
+            action: 'APPROVED_BY_STORE',
+            performedBy: approverName,
+            role: 'Store Owner',
+            timestamp: 'Just now',
+            notes: 'Store Manager approval granted'
+          };
+          const auditLive: ProductAuditEvent = {
+            id: `aud_${Date.now()}_2`,
+            action: 'PRODUCT_LIVE',
+            performedBy: 'System Auto',
+            role: 'System',
+            timestamp: 'Just now',
+            notes: 'Product transition to LIVE'
+          };
+
+          const newAuditTrail = canBeLive
+            ? [auditLive, auditApprove, ...(p.auditTrail || [])]
+            : [auditApprove, ...(p.auditTrail || [])];
+
+          return {
+            ...p,
+            status: finalStatus,
+            updatedAt: 'Just now',
+            reviewedBy: {
+              id: 'usr_owner_01',
+              name: approverName,
+              role: 'Store Owner',
+              timestamp: 'Just now'
+            },
+            auditTrail: newAuditTrail
+          };
+        }
+        return p;
+      })
+    );
+
+    return {
+      success: true,
+      isLive: canBeLive,
+      error: missing.length > 0 ? `Approved but missing live conditions: ${missing.join(', ')}` : undefined
+    };
+  };
+
+  const requestProductChangesByStore = (
+    productId: string,
+    requestedChangesList: string[],
+    comment: string,
+    reviewerName: string = 'Vikramaditya (Store Owner)'
+  ) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'CHANGES_REQUESTED',
+            performedBy: reviewerName,
+            role: 'Store Owner',
+            timestamp: 'Just now',
+            notes: `Requested changes: ${requestedChangesList.join(', ')}. Comment: ${comment}`
+          };
+          return {
+            ...p,
+            status: 'CHANGES_REQUESTED',
+            updatedAt: 'Just now',
+            reviewedBy: {
+              id: 'usr_owner_01',
+              name: reviewerName,
+              role: 'Store Owner',
+              timestamp: 'Just now'
+            },
+            reviewComment: comment,
+            requestedChanges: requestedChangesList,
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const rejectProductByStore = (
+    productId: string,
+    reason: string,
+    reviewerName: string = 'Vikramaditya (Store Owner)'
+  ) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'REJECTED',
+            performedBy: reviewerName,
+            role: 'Store Owner',
+            timestamp: 'Just now',
+            notes: `Rejection reason: ${reason}`
+          };
+          return {
+            ...p,
+            status: 'REJECTED',
+            updatedAt: 'Just now',
+            reviewedBy: {
+              id: 'usr_owner_01',
+              name: reviewerName,
+              role: 'Store Owner',
+              timestamp: 'Just now'
+            },
+            reviewComment: reason,
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const pauseProductByStore = (productId: string, reason: string = 'Paused by Store Owner') => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'PAUSED',
+            performedBy: 'Vikramaditya (Store Owner)',
+            role: 'Store Owner',
+            timestamp: 'Just now',
+            notes: reason
+          };
+          return {
+            ...p,
+            status: 'PAUSED',
+            updatedAt: 'Just now',
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const unpauseProductByStore = (productId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'PRODUCT_LIVE',
+            performedBy: 'Vikramaditya (Store Owner)',
+            role: 'Store Owner',
+            timestamp: 'Just now',
+            notes: 'Product unpaused and made LIVE'
+          };
+          return {
+            ...p,
+            status: 'LIVE',
+            updatedAt: 'Just now',
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
+  const resubmitProductForApproval = (productId: string) => {
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const newAudit: ProductAuditEvent = {
+            id: `aud_${Date.now()}`,
+            action: 'RESUBMITTED',
+            performedBy: 'Neha Gupta (Catalogue Executive)',
+            role: 'Catalogue Executive',
+            timestamp: 'Just now',
+            notes: 'Resubmitted after addressing requested changes'
+          };
+          return {
+            ...p,
+            status: 'UNDER_REVIEW',
+            updatedAt: 'Just now',
+            reviewComment: undefined,
+            requestedChanges: undefined,
+            auditTrail: [newAudit, ...(p.auditTrail || [])]
+          };
+        }
+        return p;
+      })
+    );
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -1803,6 +2434,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supportTickets,
         kycDocuments,
         recentScans,
+        catalogueExecutives,
+        executiveRequests,
+        executiveActivities,
+        executiveLoginHistories,
+        executiveProductActivities,
+        businessProfile,
+        maxActiveExecutivesLimit,
         addProduct,
         updateProduct,
         deleteProduct,
@@ -1822,6 +2460,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSupportTicket,
         replyToSupportTicket,
         uploadKycDoc,
+        addCatalogueExecutive,
+        updateCatalogueExecutive,
+        updateExecutivePermissions,
+        toggleExecutiveStatus,
+        requestAdditionalExecutives,
+        updateBusinessProfile,
+        submitProductForApproval,
+        approveProductByStore,
+        requestProductChangesByStore,
+        rejectProductByStore,
+        pauseProductByStore,
+        unpauseProductByStore,
+        resubmitProductForApproval,
         processPOSSale,
         processBarcodeReturn,
         processBarcodeExchange,

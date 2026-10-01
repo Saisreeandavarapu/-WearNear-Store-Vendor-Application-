@@ -27,7 +27,9 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -58,7 +60,9 @@ export const MobileMoreSheet: React.FC<MobileMoreSheetProps> = ({ isOpen, onClos
       title: 'STORE & COMPLIANCE',
       items: [
         { label: 'Store Profile', path: '/vendor/store-profile', icon: Store, desc: 'Store details & visual gallery' },
-        { label: 'KYC Verification', path: '/vendor/kyc', icon: FileCheck, desc: 'Identity, GST & bank docs' },
+        { label: 'Business Profile', path: '/vendor/business', icon: Building2, desc: 'GST, PAN & Bank Payout details' },
+        { label: 'KYC Status & Verification', path: '/vendor/kyc/status', icon: FileCheck, desc: 'Identity, GST & bank docs review' },
+        { label: 'Catalogue Executives', path: '/vendor/catalogue-executives', icon: UserCheck, desc: 'Fulfilment staff, barcode tags & matrix' },
         { label: 'Staff Management', path: '/vendor/staff', icon: Users, desc: 'Team access & permissions' }
       ]
     },

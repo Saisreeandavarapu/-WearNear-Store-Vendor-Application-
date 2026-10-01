@@ -23,7 +23,9 @@ import {
   Sparkles,
   Zap,
   Tag,
-  Camera
+  Camera,
+  AlertCircle,
+  XCircle
 } from 'lucide-react';
 import { StatCard } from '../../components/common/StatCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -251,6 +253,90 @@ export const DashboardPage: React.FC = () => {
             subValue="Available to payout"
             onClick={() => navigate('/vendor/wallet')}
           />
+        </motion.div>
+
+        {/* SECTION 30: CATALOGUE APPROVAL SUMMARY (STORE OWNER / MANAGER) */}
+        <motion.div variants={staggerItem} className="bg-gradient-to-r from-[#172B82] via-[#243FBA] to-[#3155D8] p-5 sm:p-6 rounded-3xl text-white shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/15 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-white/20 text-white">
+                  Store Approval Hub
+                </span>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              </div>
+              <h2 className="text-lg font-bold mt-1 text-white">Catalogue Approval Overview</h2>
+              <p className="text-xs text-blue-100">
+                Review, approve, or request changes for products prepared by your Catalogue Executives.
+              </p>
+            </div>
+
+            <Link
+              to="/vendor/products/approvals"
+              className="px-4 py-2 bg-white text-[#172B82] hover:bg-slate-100 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-md shrink-0 self-start sm:self-auto"
+            >
+              <Eye className="w-4 h-4 text-[#172B82]" />
+              <span>Review Products</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4">
+            <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[11px] font-medium text-amber-200 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Pending Approval
+              </span>
+              <p className="text-2xl font-black mt-1">
+                {products.filter((p) => p.lifecycleStatus === 'UNDER_REVIEW' || p.lifecycleStatus === 'SUBMITTED').length}
+              </p>
+              <p className="text-[10px] text-blue-200 mt-0.5">Awaiting decision</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[11px] font-medium text-emerald-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Approved Today
+              </span>
+              <p className="text-2xl font-black mt-1">
+                {products.filter((p) => p.lifecycleStatus === 'APPROVED' || p.lifecycleStatus === 'LIVE').length}
+              </p>
+              <p className="text-[10px] text-blue-200 mt-0.5">Store approved</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[11px] font-medium text-blue-200 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Changes Requested
+              </span>
+              <p className="text-2xl font-black mt-1">
+                {products.filter((p) => p.lifecycleStatus === 'CHANGES_REQUESTED').length}
+              </p>
+              <p className="text-[10px] text-blue-200 mt-0.5">Returned to exec</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[11px] font-medium text-rose-200 flex items-center gap-1">
+                <XCircle className="w-3.5 h-3.5" />
+                Rejected
+              </span>
+              <p className="text-2xl font-black mt-1">
+                {products.filter((p) => p.lifecycleStatus === 'REJECTED').length}
+              </p>
+              <p className="text-[10px] text-blue-200 mt-0.5">Not approved</p>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 bg-white/10 backdrop-blur-md p-3.5 rounded-2xl border border-white/10">
+              <span className="text-[11px] font-medium text-emerald-300 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                Live Today
+              </span>
+              <p className="text-2xl font-black mt-1">
+                {products.filter((p) => p.lifecycleStatus === 'LIVE').length}
+              </p>
+              <p className="text-[10px] text-blue-200 mt-0.5">Visible to customers</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Quick Action Ribbon with Barcode Shortcuts */}

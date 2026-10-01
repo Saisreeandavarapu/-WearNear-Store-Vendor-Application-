@@ -89,6 +89,8 @@ export const VendorHeader: React.FC<VendorHeaderProps> = ({ onOpenSearch }) => {
     if (path === '/vendor/reports') return 'Sales Reports';
     if (path === '/vendor/reports/products') return 'Performance';
     if (path === '/vendor/store-profile') return 'Store Profile';
+    if (path.includes('/vendor/business')) return 'Business Profile';
+    if (path.includes('/vendor/catalogue-executives')) return 'Catalogue Executives';
     if (path === '/vendor/customers') return 'Customers';
     if (path === '/vendor/staff') return 'Staff & Access';
     if (path === '/vendor/notifications') return 'Notifications';

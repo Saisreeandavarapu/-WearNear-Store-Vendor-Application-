@@ -9,13 +9,25 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { OtpPage } from './pages/auth/OtpPage';
 import { KycPage } from './pages/auth/KycPage';
+import { KycStatusPage } from './pages/auth/KycStatusPage';
 import { ApprovalPage } from './pages/auth/ApprovalPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+
+// Business Profile
+import { BusinessProfilePage } from './pages/business/BusinessProfilePage';
 
 // Main Application Pages
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { StoreProfilePage } from './pages/store/StoreProfilePage';
 import { CustomersPage } from './pages/store/CustomersPage';
+import { CustomerDetailPage } from './pages/store/CustomerDetailPage';
 import { StaffPage } from './pages/store/StaffPage';
+
+// Catalogue Executives (Dedicated Store/Vendor Module)
+import { CatalogueExecutivesListPage } from './pages/catalogue-executives/CatalogueExecutivesListPage';
+import { AddCatalogueExecutivePage } from './pages/catalogue-executives/AddCatalogueExecutivePage';
+import { CatalogueExecutiveDetailPage } from './pages/catalogue-executives/CatalogueExecutiveDetailPage';
 
 // Products & Catalog
 import { ProductListPage } from './pages/products/ProductListPage';
@@ -28,6 +40,12 @@ import { CategoriesPage } from './pages/catalog/CategoriesPage';
 import { BrandsPage } from './pages/catalog/BrandsPage';
 import { SizesPage } from './pages/catalog/SizesPage';
 import { ColorsPage } from './pages/catalog/ColorsPage';
+
+// Catalogue Executive Product Creation & Store Approval Workflow Pages
+import { CatalogueProductListPage } from './pages/catalogue/CatalogueProductListPage';
+import { AddCatalogueProductPage } from './pages/catalogue/AddCatalogueProductPage';
+import { ProductApprovalsListPage } from './pages/products/ProductApprovalsListPage';
+import { ProductApprovalDetailPage } from './pages/products/ProductApprovalDetailPage';
 
 // Inventory
 import { InventoryPage } from './pages/inventory/InventoryPage';
@@ -75,7 +93,10 @@ export const App: React.FC = () => {
       <Route path="/vendor/login" element={<LoginPage />} />
       <Route path="/vendor/register" element={<RegisterPage />} />
       <Route path="/vendor/otp" element={<OtpPage />} />
+      <Route path="/vendor/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/vendor/reset-password" element={<ResetPasswordPage />} />
       <Route path="/vendor/kyc" element={<KycPage />} />
+      <Route path="/vendor/kyc/status" element={<KycStatusPage />} />
       <Route path="/vendor/approval" element={<ApprovalPage />} />
 
       {/* Authenticated Application Shell Routes */}
@@ -83,13 +104,23 @@ export const App: React.FC = () => {
         {/* Main Dashboard */}
         <Route path="/vendor/dashboard" element={<DashboardPage />} />
 
-        {/* Store Profile */}
+        {/* Store Profile & Business */}
         <Route path="/vendor/store-profile" element={<StoreProfilePage />} />
         <Route path="/vendor/store-profile/edit" element={<StoreProfilePage />} />
         <Route path="/vendor/store-profile/images" element={<StoreProfilePage />} />
+        <Route path="/vendor/business" element={<BusinessProfilePage />} />
+        <Route path="/vendor/business/edit" element={<BusinessProfilePage />} />
 
         {/* Barcode Scanner */}
         <Route path="/vendor/barcode-scanner" element={<BarcodeScannerPage />} />
+
+        {/* Store Approval Routes */}
+        <Route path="/vendor/products/approvals" element={<ProductApprovalsListPage />} />
+        <Route path="/vendor/products/approvals/:id" element={<ProductApprovalDetailPage />} />
+
+        {/* Catalogue Executive Product Creation */}
+        <Route path="/vendor/catalogue/products" element={<CatalogueProductListPage />} />
+        <Route path="/vendor/catalogue/products/add" element={<AddCatalogueProductPage />} />
 
         {/* Products */}
         <Route path="/vendor/products" element={<ProductListPage />} />
@@ -116,6 +147,7 @@ export const App: React.FC = () => {
         <Route path="/vendor/inventory/transactions" element={<InventoryTransactionsPage />} />
         <Route path="/vendor/inventory/low-stock" element={<InventoryPage />} />
         <Route path="/vendor/inventory/out-of-stock" element={<InventoryPage />} />
+        <Route path="/vendor/inventory/adjust" element={<InventoryPage />} />
         <Route path="/vendor/inventory/import" element={<InventoryImportPage />} />
         <Route path="/vendor/inventory/import/history" element={<InventoryImportPage />} />
 
@@ -137,17 +169,30 @@ export const App: React.FC = () => {
         <Route path="/vendor/settlements" element={<SettlementsPage />} />
         <Route path="/vendor/settlements/:id" element={<SettlementsPage />} />
 
-        {/* Analytics */}
+        {/* Analytics & Reports */}
         <Route path="/vendor/reports" element={<ReportsPage />} />
-        <Route path="/vendor/reports/products" element={<ProductPerformancePage />} />
+        <Route path="/vendor/reports/products" element={<ReportsPage />} />
+        <Route path="/vendor/reports/inventory" element={<ReportsPage />} />
+        <Route path="/vendor/reports/orders" element={<ReportsPage />} />
+        <Route path="/vendor/reports/settlements" element={<ReportsPage />} />
 
         {/* Customers & Staff */}
         <Route path="/vendor/customers" element={<CustomersPage />} />
+        <Route path="/vendor/customers/:id" element={<CustomerDetailPage />} />
         <Route path="/vendor/staff" element={<StaffPage />} />
         <Route path="/vendor/staff/add" element={<StaffPage />} />
         <Route path="/vendor/staff/:id" element={<StaffPage />} />
         <Route path="/vendor/staff/:id/edit" element={<StaffPage />} />
         <Route path="/vendor/staff/:id/permissions" element={<StaffPage />} />
+
+        {/* Catalogue Executives (Dedicated Store Owner Module) */}
+        <Route path="/vendor/catalogue-executives" element={<CatalogueExecutivesListPage />} />
+        <Route path="/vendor/catalogue-executives/add" element={<AddCatalogueExecutivePage />} />
+        <Route path="/vendor/catalogue-executives/:id" element={<CatalogueExecutiveDetailPage />} />
+        <Route path="/vendor/catalogue-executives/:id/permissions" element={<CatalogueExecutiveDetailPage />} />
+        <Route path="/vendor/catalogue-executives/:id/activity" element={<CatalogueExecutiveDetailPage />} />
+        <Route path="/vendor/catalogue-executives/:id/login-history" element={<CatalogueExecutiveDetailPage />} />
+        <Route path="/vendor/catalogue-executives/:id/product-activity" element={<CatalogueExecutiveDetailPage />} />
 
         {/* Operations */}
         <Route path="/vendor/returns" element={<ReturnsPage />} />

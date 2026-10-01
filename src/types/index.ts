@@ -62,6 +62,39 @@ export interface ProductVariant {
   reservedStock?: number;
 }
 
+export type ProductLifecycleStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'CHANGES_REQUESTED'
+  | 'APPROVED'
+  | 'LIVE'
+  | 'REJECTED'
+  | 'PAUSED'
+  | 'OUT_OF_STOCK'
+  | 'ARCHIVED';
+
+export interface ProductAuditEvent {
+  id: string;
+  action:
+    | 'PRODUCT_CREATED'
+    | 'VARIANT_CREATED'
+    | 'BARCODE_ASSIGNED'
+    | 'STOCK_ADDED'
+    | 'SUBMITTED_FOR_APPROVAL'
+    | 'STORE_REVIEW_STARTED'
+    | 'CHANGES_REQUESTED'
+    | 'APPROVED_BY_STORE'
+    | 'PRODUCT_LIVE'
+    | 'REJECTED'
+    | 'PAUSED'
+    | 'RESUBMITTED';
+  performedBy: string;
+  role: string;
+  timestamp: string;
+  notes?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -78,7 +111,7 @@ export interface Product {
   discountPercent: number;
   stock: number;
   lowStockThreshold: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK' | 'DRAFT';
+  status: ProductLifecycleStatus;
   images: string[];
   sizes: string[];
   colors: { name: string; hex: string }[];
@@ -87,6 +120,21 @@ export interface Product {
   updatedAt: string;
   salesCount: number;
   rating: number;
+  submittedBy?: {
+    id: string;
+    name: string;
+    role: string;
+    timestamp: string;
+  };
+  reviewedBy?: {
+    id: string;
+    name: string;
+    role: string;
+    timestamp: string;
+  };
+  reviewComment?: string;
+  requestedChanges?: string[];
+  auditTrail?: ProductAuditEvent[];
 }
 
 export interface Category {
@@ -473,3 +521,166 @@ export interface KycDocument {
   uploadedAt?: string;
   rejectionReason?: string;
 }
+
+export interface ExecutivePermissions {
+  product: {
+    view: boolean;
+    create: boolean;
+    update: boolean;
+    delete: boolean;
+    variants: boolean;
+    images: boolean;
+  };
+  bulk: {
+    bulkImport: boolean;
+    bulkUpdate: boolean;
+    bulkExport: boolean;
+    bulkPriceUpdate: boolean;
+    bulkStockUpdate: boolean;
+    bulkBarcodeAssignment: boolean;
+  };
+  inventory: {
+    view: boolean;
+    add: boolean;
+    update: boolean;
+    adjust: boolean;
+    transactions: boolean;
+    bulkInventory: boolean;
+  };
+  orders: {
+    view: boolean;
+    process: boolean;
+    picking: boolean;
+    productVerification: boolean;
+    quantityVerification: boolean;
+    packing: boolean;
+    evidence: boolean;
+    package: boolean;
+    handover: boolean;
+  };
+  barcode: {
+    view: boolean;
+    generate: boolean;
+    assign: boolean;
+    scan: boolean;
+    print: boolean;
+    bulkBarcode: boolean;
+  };
+}
+
+export type PermissionPreset = 'STANDARD' | 'SENIOR' | 'CUSTOM';
+
+export interface CatalogueExecutive {
+  id: string;
+  employeeId: string;
+  name: string;
+  phone: string;
+  email: string;
+  storeId: string;
+  role: 'Catalogue Executive' | 'Senior Executive' | 'Fulfilment Lead';
+  status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+  joinedDate: string;
+  lastLogin: string;
+  currentSession?: {
+    device: string;
+    ip: string;
+    loginTime: string;
+  };
+  preset: PermissionPreset;
+  permissions: ExecutivePermissions;
+  avatar?: string;
+}
+
+export interface ExecutiveRequest {
+  id: string;
+  currentCount: number;
+  requestedAdditionalCount: number;
+  reason: string;
+  requestedBy: string;
+  date: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+  adminNotes?: string;
+}
+
+export type ExecutiveActionType =
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'PRODUCT_VIEW'
+  | 'PRODUCT_CREATE'
+  | 'PRODUCT_UPDATE'
+  | 'PRODUCT_DELETE'
+  | 'VARIANT_UPDATE'
+  | 'BARCODE_GENERATED'
+  | 'BARCODE_ASSIGNED'
+  | 'INVENTORY_UPDATED'
+  | 'BULK_IMPORT'
+  | 'BULK_UPDATE'
+  | 'ORDER_PICKING'
+  | 'PRODUCT_VERIFICATION'
+  | 'QUANTITY_VERIFICATION'
+  | 'PACKING'
+  | 'EVIDENCE'
+  | 'PACKAGE_CREATION'
+  | 'HANDOVER';
+
+export interface ExecutiveActivityItem {
+  id: string;
+  executiveId: string;
+  executiveName: string;
+  action: ExecutiveActionType;
+  details: string;
+  timestamp: string;
+  referenceId?: string;
+}
+
+export interface ExecutiveLoginHistory {
+  id: string;
+  executiveId: string;
+  date: string;
+  time: string;
+  device: string;
+  browser: string;
+  ip: string;
+  status: 'SUCCESS' | 'FAILED' | 'EXPIRED';
+  sessionDuration?: string;
+}
+
+export interface ExecutiveProductActivity {
+  id: string;
+  executiveId: string;
+  date: string;
+  productsViewed: number;
+  productsCreated: number;
+  productsUpdated: number;
+  variantsUpdated: number;
+  barcodesGenerated: number;
+  bulkOperations: number;
+}
+
+export interface BusinessProfile {
+  id: string;
+  legalName: string;
+  tradeName: string;
+  businessType: 'Proprietorship' | 'Partnership' | 'Pvt Ltd' | 'LLP';
+  gstin: string;
+  panNumber: string;
+  registeredAddress: {
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  bankDetails: {
+    accountNumber: string;
+    ifscCode: string;
+    bankName: string;
+    branch: string;
+    accountHolder: string;
+  };
+  kycStatus: 'APPROVED' | 'PENDING' | 'UNDER_REVIEW' | 'REJECTED';
+  taxRegistrationDate: string;
+  authorizedSignatory: string;
+  contactEmail: string;
+  contactPhone: string;
+}
+

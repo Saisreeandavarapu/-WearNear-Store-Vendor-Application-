@@ -30,7 +30,9 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -100,10 +102,13 @@ export const VendorSidebar: React.FC<VendorSidebarProps> = ({ collapsed, onToggl
       ]
     },
     {
-      title: 'STORE',
+      title: 'STORE & BUSINESS',
       items: [
         { label: 'Store Profile', path: '/vendor/store-profile', icon: Store },
-        { label: 'Staff', path: '/vendor/staff', icon: Users },
+        { label: 'Business Profile', path: '/vendor/business', icon: Building2 },
+        { label: 'Customers', path: '/vendor/customers', icon: Users },
+        { label: 'Staff Management', path: '/vendor/staff', icon: Users },
+        { label: 'Catalogue Executives', path: '/vendor/catalogue-executives', icon: UserCheck, badge: '3/3' },
         { label: 'Reviews', path: '/vendor/reviews', icon: Star }
       ]
     },
